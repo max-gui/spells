@@ -39,6 +39,8 @@ dist/config-resolver:
 	mkdir -p $(@D)
 	CGO_ENABLED=0 GOOS=${os} go build $(LD_FLAGS) -v -o dist/${PREFIX} cmd/${PREFIX}/main.go
 	cp dist/${PREFIX} ~/Projects/hercules/iac-tools/spells/
+	cp code_key ~/Projects/hercules/iac-tools/spells/
+	cp sec.json ~/Projects/hercules/iac-tools/spells/
 docker:
 	docker build -t $(PREFIX):$(VERSION) .
 	docker save -o dist/$(PREFIX):$(VERSION).tar $(PREFIX):$(VERSION)
