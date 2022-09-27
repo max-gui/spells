@@ -7,9 +7,11 @@ import (
 
 	"github.com/max-gui/consulagent/pkg/consulhelp"
 	"github.com/max-gui/fileconvagt/pkg/convertops"
+	"github.com/max-gui/logagent/pkg/logagent"
 	"github.com/max-gui/spells/internal/iac/archfig"
 	"github.com/max-gui/spells/internal/iac/templ"
 	"github.com/max-gui/spells/internal/pkg/constset"
+	"gopkg.in/yaml.v3"
 )
 
 type ValuesInfo struct {
@@ -19,35 +21,47 @@ type ValuesInfo struct {
 	Replica    int
 	PrePackage string
 	Unsafe     bool
+	Host       string
 	Expovice   string
 	Expopath   string
 	ExpoSufix  string
+	Internet   archfig.BlackInfo
+	Intranet   archfig.BlackInfo
 	Manual     []struct {
+		Host       string `yaml:"host,omitempty"`
 		PrefixPath string `yaml:"prefixPath,omitempty"`
 		SurfixPath string `yaml:"surfixPath,omitempty"`
 	} `yaml:"menual,omitempty"`
-	Cpu        string
-	Mem        string
-	Port       string
-	Tags       map[string]string
-	Hosts      []map[string]interface{}
-	Rtargs     string
-	Volumns    []map[string]interface{}
-	Detectorip map[string]interface{}
-	Resource   map[string][]interface{}
-	Appconf    archfig.Arch_config
+	Cpu           string
+	Mem           string
+	Port          string
+	RandomPort    string
+	Hostport      string
+	IsHostNetwork bool
+	Tags          map[string]string
+	Hosts         []map[string]interface{}
+	Rtargs        string
+	Volumns       []map[string]interface{}
+	Detectorip    map[string]interface{}
+	Resource      map[string][]interface{}
+	Appconf       archfig.Arch_config
 }
 
 func (v *ValuesInfo) GenPort(lens int) string {
-	if len(v.Appconf.Environment.Port) <= 0 {
-		head := convertops.RndRangestr(1, 3, 6)
-		tail := convertops.RndRangestr(4, 0, 9)
-		v.Port = head + tail
+	// if len(v.Appconf.Environment.Port) <= 0 {
+	// 	head := convertops.RndRangestr(1, 3, 6)
+	// 	tail := convertops.RndRangestr(4, 0, 9)
+	// 	v.Port = head + tail
 
-	} else {
-		v.Port = v.Appconf.Environment.Port
-	}
-	return v.Port
+	// } else {
+	// 	v.Port = v.Appconf.Environment.Port
+	// }
+	// return v.Port
+
+	head := convertops.RndRangestr(1, 3, 6)
+	tail := convertops.RndRangestr(4, 0, 9)
+	v.RandomPort = head + tail
+	return v.RandomPort
 }
 
 func (v *ValuesInfo) GenMemMi() int {
@@ -73,8 +87,29 @@ func GenValfile(valfig ValuesInfo, c context.Context) string {
 	// a := Arch_config{}
 	// yaml.Unmarshal(str, &a)
 	// t.Log(a)
-	name := "values.yaml"
-	result := templ.GemplFrom(name, valfig, c)
+	// name := "values.yaml"
+	name := "basic.yml"
+	// valuestr := templ.GemplFrom(name, valfig, c)
+	valuestr := templ.GemplFromType(name, "values", valfig, c)
+	logger := logagent.InstArch(c)
+	logger.Print(valuestr)
+	valuesinfo := map[string]interface{}{}
+	err := yaml.Unmarshal([]byte(valuestr), &valuesinfo)
+
+	if err != nil {
+		logger.Panic(err)
+	}
+	sidefig := GenSidefig(valfig.Appconf, valuesinfo, valfig.Env, valfig.Dc, c)
+	neighbours := GenSideContent(sidefig, c)
+	logger.Info(valuesinfo["podtags"].(map[string]interface{})["dc"])
+	fulvaluesinfo := map[string]interface{}{
+		"Values":     valuesinfo,
+		"Neighbours": neighbours,
+	}
+	logger.Info(valuesinfo["podtags"].(map[string]interface{})["dc"])
+	logger.Info(fulvaluesinfo["Values"].(map[string]interface{})["podtags"].(map[string]interface{})["dc"])
+
+	result := GenFullValues(fulvaluesinfo, c)
 
 	return result
 }
@@ -87,12 +122,30 @@ func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc stri
 
 	//remove ign runtime args
 	var argstr string
-	argstr = appconf.Deploy.Runtime.Args
-	for _, v := range appconf.Deploy.Runtime.Ign[envinfo.Env] {
-		argstr = strings.Replace(appconf.Deploy.Runtime.Args, v, "", -1)
 
-		// app_conf.Deploy.Runtime.Args = strings.Replace(app_conf.Deploy.Runtime.Args, "  ", " ", -1)
+	ignmap := func(slice []string) map[string]struct{} {
+		res := map[string]struct{}{}
+		for _, v := range slice {
+			res[v] = struct{}{}
+		}
+
+		return res
+	}(appconf.Deploy.Runtime.Ign[envinfo.Env])
+
+	for _, arg := range appconf.Deploy.Runtime.Args {
+		if _, ok := ignmap[arg]; !ok {
+			argstr = argstr + " " + arg
+		}
 	}
+
+	argstr = strings.Trim(argstr, " ")
+
+	// argstr = appconf.Deploy.Runtime.Args
+	// for _, v := range appconf.Deploy.Runtime.Ign[envinfo.Env] {
+	// 	argstr = strings.Replace(appconf.Deploy.Runtime.Args, v, "", -1)
+
+	// 	// app_conf.Deploy.Runtime.Args = strings.Replace(app_conf.Deploy.Runtime.Args, "  ", " ", -1)
+	// }
 	// var argstr = appconf.Deploy.Runtime.Args
 	// if len(appconf.Deploy.Runtime.Ign[env]) > 0 {
 	// 	for _, v := range appconf.Deploy.Runtime.Ign[env] {
@@ -109,21 +162,27 @@ func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc stri
 	// argstr := strings.Join(runargs, " ")
 
 	valuearg := ValuesInfo{
-		Replica:    appconf.Environment.Strategy[envinfo.Env].Replica,
-		PrePackage: appconf.Deploy.Build.Output, // appconf.Deploy.Build.OutputPath,
-		Unsafe:     appconf.Environment.Expose.Unsafe,
-		Expovice:   appconf.Environment.Expose.Expovice,
-		Expopath:   appconf.Environment.Expose.PrefixPath,
-		ExpoSufix:  appconf.Environment.Expose.SurfixPath,
-		Manual:     appconf.Environment.Expose.Manual,
-		Cpu:        appconf.Environment.Strategy[envinfo.Env].Cpu,
-		Mem:        appconf.Environment.Strategy[envinfo.Env].Mem,
-		Tags:       appconf.Environment.Tag,
-		Rtargs:     argstr,
-		Env:        envinfo.Env,
-		Dc:         envinfo.Dc,
-		Resource:   make(map[string][]interface{}),
-		Appconf:    appconf,
+		Replica:       appconf.Environment.Strategy[envinfo.Env].Replica,
+		PrePackage:    appconf.Deploy.Build.Output, // appconf.Deploy.Build.OutputPath,
+		Unsafe:        appconf.Environment.Expose.Unsafe,
+		Host:          appconf.Environment.Expose.Host,
+		Expovice:      appconf.Environment.Expose.Expovice,
+		Expopath:      appconf.Environment.Expose.PrefixPath,
+		ExpoSufix:     appconf.Environment.Expose.SurfixPath,
+		Internet:      appconf.Environment.Expose.Internet,
+		Intranet:      appconf.Environment.Expose.Intranet,
+		Manual:        appconf.Environment.Expose.Manual,
+		Cpu:           appconf.Environment.Strategy[envinfo.Env].Cpu,
+		Mem:           appconf.Environment.Strategy[envinfo.Env].Mem,
+		Port:          appconf.Environment.Port,
+		Hostport:      appconf.Environment.Hostport,
+		IsHostNetwork: appconf.Environment.IsHostNetwork,
+		Tags:          appconf.Environment.Tag,
+		Rtargs:        argstr,
+		Env:           envinfo.Env,
+		Dc:            envinfo.Dc,
+		Resource:      make(map[string][]interface{}),
+		Appconf:       appconf,
 	}
 
 	if _, ok := appconf.Deploy.Limited[envinfo.Dc]; ok {

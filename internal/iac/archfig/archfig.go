@@ -3,7 +3,7 @@ package archfig
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -24,6 +24,59 @@ type EnvInfo struct {
 	Env string
 	Dc  string
 }
+type BlackInfo struct {
+	Visible   bool     `yaml:"visible,omitempty"`
+	Blacklist []string `yaml:"blacklist,omitempty"`
+}
+
+type ExposeInfo struct {
+	Internet   BlackInfo `yaml:"internet,omitempty"`
+	Intranet   BlackInfo `yaml:"intranet,omitempty"`
+	Clusternet WhiteInfo `yaml:"clusternet,omitempty"`
+	Ptrnet     WhiteInfo `yaml:"ptrnet,omitempty"`
+	// Black      struct {
+	// 	Internet bool `yaml:"internet,omitempty"`
+	// 	Intrenet bool `yaml:"intrenet,omitempty"`
+	// } `yaml:"black,omitempty"`
+	Unsafe bool `yaml:"unsafe,omitempty"`
+	// Service string`yaml:"omitempty"`
+	// Secgwon bool`yaml:"omitempty"`
+	Host       string `yaml:"host,omitempty"`
+	Expovice   string `yaml:"expovice,omitempty"`
+	PrefixPath string `yaml:"prefixPath,omitempty"`
+	SurfixPath string `yaml:"surfixPath,omitempty"`
+	Manual     []struct {
+		Host       string `yaml:"host,omitempty"`
+		PrefixPath string `yaml:"prefixPath,omitempty"`
+		SurfixPath string `yaml:"surfixPath,omitempty"`
+	} `yaml:"menual,omitempty"`
+}
+
+// type ExposeInfoAll struct {
+// 	Internet   BlackInfo `yaml:"internet,omitempty"`
+// 	Intranet   BlackInfo `yaml:"intranet,omitempty"`
+// 	Clusternet WhiteInfo `yaml:"clusternet,omitempty"`
+// 	Ptrnet     WhiteInfo `yaml:"ptrnet,omitempty"`
+// 	// Black      struct {
+// 	// 	Internet bool `yaml:"internet,omitempty"`
+// 	// 	Intrenet bool `yaml:"intrenet,omitempty"`
+// 	// } `yaml:"black,omitempty"`
+// 	Unsafe bool `yaml:"unsafe,omitempty"`
+// 	// Service string`yaml:"omitempty"`
+// 	// Secgwon bool`yaml:"omitempty"`
+// 	Expovice   string `yaml:"expovice,omitempty"`
+// 	PrefixPath string `yaml:"prefixPath,omitempty"`
+// 	SurfixPath string `yaml:"surfixPath,omitempty"`
+// 	Manual     []struct {
+// 		PrefixPath string `yaml:"prefixPath,omitempty"`
+// 		SurfixPath string `yaml:"surfixPath,omitempty"`
+// 	} `yaml:"menual,omitempty"`
+// 	Appname string `yaml:"appname,omitempty"`
+// }
+
+type WhiteInfo struct {
+	Open bool `yaml:"open,omitempty"`
+}
 
 type Arch_config struct {
 	Application struct {
@@ -31,6 +84,9 @@ type Arch_config struct {
 		Description string            `yaml:"description,omitempty"`
 		Appid       string            `yaml:"appid,omitempty"`
 		Type        string            `yaml:"type,omitempty"`
+		Language    string            `yaml:"language,omitempty"`
+		Langval     string            `yaml:"langval,omitempty"`
+		NoSource    bool              `yaml:"nosource,omitempty"`
 		Repositry   string            `yaml:"repositry,omitempty"`
 		Resource    map[string]string `yaml:"resource,omitempty"`
 		Service     []string          `yaml:"service,omitempty"`
@@ -41,7 +97,8 @@ type Arch_config struct {
 		Allpath     bool              `yaml:"allpath,omitempty"`
 	}
 	Environment struct {
-		K8snode  string `yaml:"k8snode,omitempty"`
+		NodeSelector map[string]string `yaml:"nodeSelector,omitempty"`
+		// K8snode      string            `yaml:"k8snode,omitempty"`
 		Strategy map[string]struct {
 			Capacity string `yaml:"capacity,omitempty"`
 			Cpu      string `yaml:"cpu,omitempty"`
@@ -50,25 +107,13 @@ type Arch_config struct {
 		} `yaml:"strategy,omitempty"`
 		Resource map[string][]string `yaml:"resource,omitempty"`
 		// Volumns []string
-		Tag  map[string]string `yaml:"tag,omitempty"`
-		Port string            `yaml:"port,omitempty"`
+		Tag            map[string]string `yaml:"tag,omitempty"`
+		Port           string            `yaml:"port,omitempty"`
+		EnHostportable bool              `yaml:"enhostportable,omitempty"`
+		Hostport       string            `yaml:"hostport,omitempty"`
+		IsHostNetwork  bool              `yaml:"ishostnetwork,omitempty"`
 		// Hosts   []string
-		Expose struct {
-			Black struct {
-				Internet bool `yaml:"internet,omitempty"`
-				Intrenet bool `yaml:"intrenet,omitempty"`
-			} `yaml:"black,omitempty"`
-			Unsafe bool `yaml:"unsafe,omitempty"`
-			// Service string`yaml:"omitempty"`
-			// Secgwon bool`yaml:"omitempty"`
-			Expovice   string `yaml:"expovice,omitempty"`
-			PrefixPath string `yaml:"prefixPath,omitempty"`
-			SurfixPath string `yaml:"surfixPath,omitempty"`
-			Manual     []struct {
-				PrefixPath string `yaml:"prefixPath,omitempty"`
-				SurfixPath string `yaml:"surfixPath,omitempty"`
-			} `yaml:"menual,omitempty"`
-		} `yaml:"expose,omitempty"`
+		Expose ExposeInfo `yaml:"expose,omitempty"`
 	} `yaml:"environment,omitempty"`
 	Deploy struct {
 		Limited  map[string]struct{} `yaml:"limited,omitempty"`
@@ -78,7 +123,7 @@ type Arch_config struct {
 		} `yaml:"strategy,omitempty"`
 		Stratail map[string][][]EnvInfo `yaml:"stratail,omitempty"`
 		Runtime  struct {
-			Args string              `yaml:"args,omitempty"`
+			Args []string            `yaml:"args,omitempty"`
 			Ign  map[string][]string `yaml:"ign,omitempty"`
 		} `yaml:"runtime,omitempty"`
 		Build struct {
@@ -92,15 +137,20 @@ type Arch_config struct {
 			Jenkignor []string `yaml:"jenkignor,omitempty"`
 			Jenkexec  []string `yaml:"jenkexec,omitempty"`
 		}
+		Sidecar struct {
+			Neighbour []string            `yaml:"neighbour,omitempty"`
+			Ign       map[string][]string `yaml:"ign,omitempty"`
+		} `yaml:"sidecar,omitempty"`
 	}
 	Docker struct {
+		From   string   `yaml:"from,omitempty"`
 		Append []string `yaml:"append,omitempty"`
 		Cmd    string   `yaml:"cmd,omitempty"`
 	} `yaml:"docker,omitempty"`
 }
 
 func getContentInfo(fcinfo FileContentInfo, c context.Context) []string {
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	log.Print(fcinfo.Content)
 	tailpath := strings.Split(fcinfo.Path, "arch/")[1]
@@ -111,9 +161,9 @@ func getContentInfo(fcinfo FileContentInfo, c context.Context) []string {
 	return projinfo
 }
 
-func GetArchfigByGitContentSin(content, appname string, install bool, c context.Context) Arch_config {
+func GetArchfigByGitContentSin(app_conf Arch_config, appname string, install bool, c context.Context) Arch_config {
 
-	appconf := GenArchConfigSin([]byte(content), appname, install, c)
+	appconf := GenArchConfigSinFrominst(app_conf, appname, install, c) // GenArchConfigSin([]byte(content), appname, install, c)
 	return appconf
 }
 
@@ -134,6 +184,14 @@ func GetArchfig(fcinfo FileContentInfo, c context.Context) Arch_config {
 func GetArchfigSin(appname string, c context.Context) Arch_config {
 
 	appconf := Arch_config{}
+	defer func() {
+		if e := recover(); e != nil {
+
+			logger := logagent.InstArch(c)
+			logger.WithField("misarch", appname).
+				Info("miss iac data")
+		}
+	}()
 	appbytes := consulhelp.GetConfigFull(*constset.ConfArchPrefix+appname, c)
 	json.Unmarshal(appbytes, &appconf)
 	return appconf
@@ -184,10 +242,10 @@ func GetAppconfig(appname, team, proj string, c context.Context) Arch_config {
 
 func GenArchConfigFromSin(appconfpath, appfname string, isinstall bool, c context.Context) Arch_config {
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	dirPth := constset.Archpath + appconfpath
-	str, err := ioutil.ReadFile(dirPth)
+	str, err := os.ReadFile(dirPth)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -196,10 +254,10 @@ func GenArchConfigFromSin(appconfpath, appfname string, isinstall bool, c contex
 
 func GenArchConfigFrom(appconfpath, team, proj, appfname string, isinstall bool, c context.Context) Arch_config {
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	dirPth := constset.Archpath + appconfpath
-	str, err := ioutil.ReadFile(dirPth)
+	str, err := os.ReadFile(dirPth)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -226,7 +284,7 @@ func ReGenArchConfig(appfname string, c context.Context) Arch_config {
 
 func GenArchConfig(appconf []byte, team, proj, appfname string, isinstall bool, c context.Context) Arch_config {
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	app_conf := GenArchConfigSin(appconf, appfname, isinstall, c)
 
@@ -245,8 +303,27 @@ func GenArchConfig(appconf []byte, team, proj, appfname string, isinstall bool, 
 }
 
 func GenArchConfigSin(appconf []byte, appfname string, isinstall bool, c context.Context) Arch_config {
+	// log := logagent.Inst(c)
 
-	log := logagent.Inst(c)
+	orgconf := GenArchConfFromBytes(appconf, c)
+	app_conf := Arch_config{}
+	yaml.Unmarshal(appconf, &app_conf)
+
+	archconf := GenArchConfigSinFrominst(app_conf, appfname, isinstall, c)
+
+	// bytes, _ := json.MarshalIndent(orgconf, "", "    ")
+
+	// consulhelp.PutConfig(*constset.ConfArchPrefix, v.Application.Team, v.Application.Project, v.Application.Name, bytes)
+	// log.Print(string(bytes))
+	if isinstall {
+		orgconf.OrgInstall(c)
+		// consulhelp.PutConfigFull(*constset.ConfOrgPrefix+orgconf.Application.Name, bytes, c)
+	}
+	return archconf
+}
+
+func GenArchConfFromBytes(appconf []byte, c context.Context) Arch_config {
+	log := logagent.InstArch(c)
 
 	orgconf := Arch_config{}
 	log.Print(string(appconf))
@@ -254,29 +331,24 @@ func GenArchConfigSin(appconf []byte, appfname string, isinstall bool, c context
 	if err != nil {
 		log.Panic(err)
 	}
-	app_conf := Arch_config{}
-	yaml.Unmarshal(appconf, &app_conf)
-
-	archconf := GenArchConfigSinFrominst(app_conf, appfname, isinstall, c)
-
-	bytes, _ := json.MarshalIndent(orgconf, "", "    ")
-
-	// consulhelp.PutConfig(*constset.ConfArchPrefix, v.Application.Team, v.Application.Project, v.Application.Name, bytes)
-	log.Print(string(bytes))
-	consulhelp.PutConfigFull(*constset.ConfOrgPrefix+orgconf.Application.Name, bytes, c)
-
-	return archconf
+	return orgconf
 }
 
 func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall bool, c context.Context) Arch_config {
 	// dirPth := appconfpath
 	// str, _ := ioutil.ReadFile(dirPth)
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	defconf := defig.GetDefconfig(c)
 	log.Print(app_conf)
 
+	// if !app_conf.Application.Ungenfig && (app_conf.Application.Language == "") {
+	// 	log.Panicf("Language should not be empty, get:\n%s", app_conf.Application.Language)
+	// }
+	// if !app_conf.Application.Ungenfig && (app_conf.Application.Description == "") {
+	// 	log.Panicf("Description should not be empty, get:\n%s", app_conf.Application.Description)
+	// }
 	if !app_conf.Application.Ungenfig && (app_conf.Application.Team == "" || app_conf.Application.Project == "") {
 
 		log.Panicf("team or project should not be empty, get:\nteam:%s project:%s", app_conf.Application.Team, app_conf.Application.Project)
@@ -290,8 +362,13 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 	bytes := consulhelp.GetConfigFull(*constset.ConfTeamProjPrefix, c)
 	teamproj := map[string]map[string]string{}
 	yaml.Unmarshal(bytes, &teamproj)
-	// teams := teamproj["team"]
-	// projs := teamproj["proj"]
+	if app_conf.Application.Language != "" {
+		if lang, ok := teamproj["language"][app_conf.Application.Language]; !ok {
+			log.Panic("this language is not existed")
+		} else {
+			app_conf.Application.Langval = lang
+		}
+	}
 	if _, ok := teamproj["team"][app_conf.Application.Team]; !ok {
 		log.Panic("this team is not existed")
 
@@ -312,6 +389,18 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 
 	if app_conf.Environment.Expose.PrefixPath == "" && (app_conf.Environment.Expose.Unsafe || app_conf.Environment.Expose.Expovice != "") {
 		log.Panicf("Expose.Path can't be empty if you want to expose a service, get:%s", app_conf.Environment.Expose.PrefixPath)
+	}
+
+	for _, v := range app_conf.Environment.Expose.Internet.Blacklist {
+		if !strings.HasPrefix(v, app_conf.Environment.Expose.PrefixPath) {
+			log.Panicf("Internet.Blacklist must start with Expose.PrefixPath, get black:%s;get prefix:%s", v, app_conf.Environment.Expose.PrefixPath)
+		}
+	}
+
+	for _, v := range app_conf.Environment.Expose.Intranet.Blacklist {
+		if !strings.HasPrefix(v, app_conf.Environment.Expose.PrefixPath) {
+			log.Panicf("Intranet.Blacklist must start with Expose.PrefixPath, get black:%s;get prefix:%s", v, app_conf.Environment.Expose.PrefixPath)
+		}
 	}
 
 	if strings.HasPrefix(app_conf.Environment.Expose.PrefixPath, "/") {
@@ -410,6 +499,14 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 		}
 	}
 
+	if app_conf.Environment.Port == "" {
+		app_conf.Environment.Port = defconf.Defualtinfo.Port
+	}
+
+	if app_conf.Environment.EnHostportable {
+		app_conf.Environment.Hostport = app_conf.Environment.Port
+	}
+
 	//add default resources to app resoureces slice
 	for k, v := range defconf.Defualtinfo.Resource {
 		app_conf.Environment.Resource[k] = append(app_conf.Environment.Resource[k], v...)
@@ -418,28 +515,58 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 	for k, v := range app_conf.Environment.Resource {
 		result := make([]string, 0, len(v))
 		temp := map[string]struct{}{}
+		rmkeys := map[string]struct{}{}
+		// rmlisst := []string{}
 		for _, item := range v {
-			if _, ok := temp[item]; !ok {
-				temp[item] = struct{}{}
-				result = append(result, item)
+			if strings.HasPrefix(item, "-") {
+				itemrm := strings.TrimPrefix(item, "-")
+				// rmlisst = append(rmlisst, itemrm)
+				delete(temp, itemrm)
+				rmkeys[itemrm] = struct{}{}
+			} else if _, ok := temp[item]; !ok {
+				if _, ok := rmkeys[item]; !ok {
+					temp[item] = struct{}{}
+				}
+				// result = append(result, item)
 			}
 		}
+		for k := range temp {
+			result = append(result, k)
+		}
+
 		app_conf.Environment.Resource[k] = result
 	}
 
+	app_conf.Deploy.Sidecar.Neighbour = append(app_conf.Deploy.Sidecar.Neighbour, defconf.Defualtinfo.Sidecar.Neighbour[app_conf.Application.Type]...)
+	app_conf.Deploy.Sidecar.Neighbour = removeDuplicateElement(app_conf.Deploy.Sidecar.Neighbour)
 	// app_conf.Environment.Volumns = append(app_conf.Environment.Volumns, defconf.Defualtinfo.Volumes...)
 
+	if app_conf.Deploy.Sidecar.Ign == nil {
+		app_conf.Deploy.Sidecar.Ign = make(map[string][]string)
+	}
+	// merge app runtime Ign with default runtime Ign;k is env
+	for k := range defconf.Defualtinfo.Capacity {
+		app_conf.Deploy.Sidecar.Ign[k] = append(app_conf.Deploy.Sidecar.Ign[k], defconf.Defualtinfo.Sidecar.Ign[k]...)
+		app_conf.Deploy.Sidecar.Ign[k] = removeDuplicateElement(app_conf.Deploy.Sidecar.Ign[k])
+	}
+
 	// merge app runtime args with default certain type runtime args
-	app_conf.Deploy.Runtime.Args = strings.ReplaceAll(app_conf.Deploy.Runtime.Args, defconf.Defualtinfo.Cmdarg.Args[app_conf.Application.Type], "")
-	app_conf.Deploy.Runtime.Args = app_conf.Deploy.Runtime.Args + " " + defconf.Defualtinfo.Cmdarg.Args[app_conf.Application.Type]
+	app_conf.Deploy.Runtime.Args = append(app_conf.Deploy.Runtime.Args, defconf.Defualtinfo.Cmdarg.Args[app_conf.Application.Type]...)
+	app_conf.Deploy.Runtime.Args = removeDuplicateElement(app_conf.Deploy.Runtime.Args)
+	// app_conf.Deploy.Runtime.Args = strings.ReplaceAll(app_conf.Deploy.Runtime.Args, defconf.Defualtinfo.Cmdarg.Args[app_conf.Application.Type], "")
+	// app_conf.Deploy.Runtime.Args = app_conf.Deploy.Runtime.Args + " " + defconf.Defualtinfo.Cmdarg.Args[app_conf.Application.Type]
 
 	if app_conf.Deploy.Runtime.Ign == nil {
 		app_conf.Deploy.Runtime.Ign = make(map[string][]string)
 	}
 	// merge app runtime Ign with default runtime Ign;k is env
-	for k, v := range app_conf.Deploy.Runtime.Ign {
-		app_conf.Deploy.Runtime.Ign[k] = append(v, defconf.Defualtinfo.Cmdarg.Ign[k]...)
+	for k := range defconf.Defualtinfo.Capacity {
+		app_conf.Deploy.Runtime.Ign[k] = append(app_conf.Deploy.Runtime.Ign[k], defconf.Defualtinfo.Cmdarg.Ign[k]...)
+		app_conf.Deploy.Runtime.Ign[k] = removeDuplicateElement(app_conf.Deploy.Runtime.Ign[k])
 	}
+	// for k, v := range app_conf.Deploy.Runtime.Ign {
+	// 	app_conf.Deploy.Runtime.Ign[k] = append(v, defconf.Defualtinfo.Cmdarg.Ign[k]...)
+	// }
 
 	//use app cmd,args,pkgconf settings if existed
 	//or else use default config
@@ -478,12 +605,6 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 		app_conf.Deploy.Build.Jenkignor = append(app_conf.Deploy.Build.Jenkignor, v)
 	}
 
-	if app_conf.Environment.Expose.Black.Internet {
-		log.Print("block for internet")
-	}
-	if app_conf.Environment.Expose.Black.Intrenet {
-		log.Print("block for internet")
-	}
 	// pos := strings.LastIndex(app_conf.Deploy.Build.Output, "/")
 	// if pos < 0 {
 
@@ -596,13 +717,190 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 	return app_conf
 }
 
+// func setNetworkListEachApp(oldlist []string, flag, isclear bool, listinfo []string, appname, confkey string, c context.Context) map[string]struct{} {
+// 	log := logagent.Inst(c)
+// 	maplist := map[string]struct{}{}
+// 	if !isclear {
+
+// 		bytes := consulhelp.GetConfigFull(confkey, c)
+// 		err := json.Unmarshal(bytes, &maplist)
+// 		if err != nil {
+// 			log.Panic(err)
+// 		}
+// 	}
+
+// 	for _, v := range oldlist {
+// 		delete(maplist, v)
+// 	}
+// 	delete(maplist, appname)
+
+// 	if flag || len(listinfo) > 0 {
+// 		if _, ok := maplist[appname]; !ok && flag {
+// 			maplist[appname] = struct{}{}
+// 		}
+// 		// } else if len(listinfo) > 0 {
+// 		for _, v := range listinfo {
+// 			if _, ok := maplist[v]; !ok {
+// 				maplist[v] = struct{}{}
+// 			}
+// 		}
+
+// 		bytes, err := json.Marshal(maplist)
+// 		if err != nil {
+// 			log.Panic(err)
+// 		}
+// 		consulhelp.PutConfigFull(confkey, bytes, c)
+// 	} else if isclear {
+// 		consulhelp.DelConfigFull(confkey, c)
+// 	}
+// 	return maplist
+// }
+
+// func setNetworkList(oldlist []string, flag, isclear bool, listinfo []string, appname, confkey string, c context.Context) map[string]struct{} {
+// 	log := logagent.Inst(c)
+// 	maplist := map[string]struct{}{}
+// 	if !isclear {
+
+// 		bytes := consulhelp.GetConfigFull(confkey, c)
+// 		err := json.Unmarshal(bytes, &maplist)
+// 		if err != nil {
+// 			log.Panic(err)
+// 		}
+// 	}
+
+// 	for _, v := range oldlist {
+// 		delete(maplist, v)
+// 	}
+// 	delete(maplist, appname)
+
+// 	if flag || len(listinfo) > 0 {
+// 		if _, ok := maplist[appname]; !ok && flag {
+// 			maplist[appname] = struct{}{}
+// 		}
+// 		// } else if len(listinfo) > 0 {
+// 		for _, v := range listinfo {
+// 			if _, ok := maplist[v]; !ok {
+// 				maplist[v] = struct{}{}
+// 			}
+// 		}
+
+// 		bytes, err := json.Marshal(maplist)
+// 		if err != nil {
+// 			log.Panic(err)
+// 		}
+// 		consulhelp.PutConfigFull(confkey, bytes, c)
+// 	} else if isclear {
+// 		consulhelp.DelConfigFull(confkey, c)
+// 	}
+// 	return maplist
+// }
+
+func setWhiteList(open bool, appname, confkey string, c context.Context) map[string]struct{} {
+	log := logagent.InstArch(c)
+	maplist := map[string]struct{}{}
+
+	if open {
+		maplist[appname] = struct{}{}
+
+		bytes, err := json.Marshal(maplist)
+		if err != nil {
+			log.Panic(err)
+		}
+		consulhelp.PutConfigFull(confkey, bytes, c)
+	} else {
+		consulhelp.DelConfigFull(confkey, c)
+	}
+	return maplist
+}
+
 func (v *Arch_config) Install(c context.Context) {
+	// oldfig := GetArchfigSin(v.Application.Name, c)
+	// v.FireWallRefresh(oldfig, c)
+	v.FireWallRefresh4Wthie(c)
 	bytes, _ := json.MarshalIndent(v, "", "    ")
 
 	// consulhelp.PutConfig(*constset.ConfArchPrefix, v.Application.Team, v.Application.Project, v.Application.Name, bytes)
 	consulhelp.PutConfigFull(*constset.ConfArchPrefix+v.Application.Name, bytes, c)
-
 }
+
+func (v *Arch_config) OrgInstall(c context.Context) {
+	// oldfig := GetArchfigSin(v.Application.Name, c)
+	// v.FireWallRefresh(oldfig, c)
+	v.FireWallRefresh4Wthie(c)
+	bytes, _ := json.MarshalIndent(v, "", "    ")
+
+	consulhelp.PutConfigFull(*constset.ConfOrgPrefix+v.Application.Name, bytes, c)
+	// consulhelp.PutConfig(*constset.ConfArchPrefix, v.Application.Team, v.Application.Project, v.Application.Name, bytes)
+	// consulhelp.PutConfigFull(*constset.ConfArchPrefix+v.Application.Name, bytes, c)
+}
+
+// func GenFWfile(templName string, data map[string]struct{}, c context.Context) string {
+// 	// dirPth := orgconfigPth + pthSep + "arch.yaml"
+// 	// str, _ := ioutil.ReadFile(dirPth)
+// 	// a := Arch_config{}
+// 	// yaml.Unmarshal(str, &a)
+// 	// t.Log(a)
+// 	name := "fabio.fw" // "jenkins." + jenfig.Type
+// 	result := templ.GemplFrom(name, data, c)
+
+// 	return result
+// }
+
+// func FireWallFlush(fwlist map[string]map[string]struct{}, c context.Context) {
+
+// 	for k, v := range fwlist {
+// 		fabioConf := GenFWfile(k, v, c)
+// 		log.Print(fabioConf)
+// 		bytes := []byte(fabioConf)
+// 		// bytes, _ := json.MarshalIndent(v, "", "    ")
+// 		consulhelp.PutConfigFull(*constset.ConfFabioPrefix+"/"+k, bytes, c)
+// 	}
+// }
+
+// func (v *Arch_config) FireWallRefresh(oldfig Arch_config, c context.Context) {
+
+// 	fwList := map[string]map[string]struct{}{}
+// 	// ml := map[string]struct{}{}
+// 	mlInternet := setNetworkList(oldfig.Environment.Expose.Internet.Blacklist, v.Environment.Expose.Internet.Visible, false, v.Environment.Expose.Internet.Blacklist, v.Application.Name, *constset.ConfbalckPrefix+"/internet", c)
+// 	fwList["internet"] = newFunction("internet", mlInternet, fwList, c)
+
+// 	mlIntranet := setNetworkList(oldfig.Environment.Expose.Intranet.Blacklist, v.Environment.Expose.Intranet.Visible, false, v.Environment.Expose.Intranet.Blacklist, v.Application.Name, *constset.ConfbalckPrefix+"/intranet", c)
+// 	fwList["intranet"] = newFunction("intranet", mlIntranet, fwList, c)
+
+// 	// mlClusternet := setNetworkList(v.Environment.Expose.Clusternet.Open, []string{}, v.Application.Name, *constset.ConfwhitePrefix+"/clusternet", c)
+// 	setNetworkList([]string{}, v.Environment.Expose.Clusternet.Open, true, []string{}, v.Application.Name, *constset.ConfwhitePrefix+"/clusternet/"+v.Application.Name, c)
+// 	// fwList["clusternet"] = mlClusternet
+// 	// mlPtrnet := setNetworkList(v.Environment.Expose.Ptrnet.Open, []string{}, v.Application.Name, *constset.ConfwhitePrefix+"/ptrnet", c)
+// 	setNetworkList([]string{}, v.Environment.Expose.Ptrnet.Open, true, []string{}, v.Application.Name, *constset.ConfwhitePrefix+"/ptrnet/"+v.Application.Name, c)
+// 	// fwList["ptrnet"] = mlPtrnet
+
+// 	FireWallFlush(fwList, c)
+// }
+
+func (v *Arch_config) FireWallRefresh4Wthie(c context.Context) {
+	setWhiteList(v.Environment.Expose.Clusternet.Open, v.Application.Name, *constset.ConfwhitePrefix+"clusternet/"+v.Application.Name, c)
+	setWhiteList(v.Environment.Expose.Ptrnet.Open, v.Application.Name, *constset.ConfwhitePrefix+"ptrnet/"+v.Application.Name, c)
+}
+
+// func newFunction(key string, ml map[string]struct{}, fwList map[string]map[string]struct{}, c context.Context) map[string]struct{} {
+// 	bytes := consulhelp.GetConfigFull(*constset.ConfmanBalckPrefix+"/"+key, c)
+// 	maplist := map[string]struct{}{}
+// 	err := json.Unmarshal(bytes, &maplist)
+// 	if err != nil {
+// 		log.Panic(err)
+// 	}
+
+// 	resmap := map[string]struct{}{}
+// 	for k := range maplist {
+// 		resmap[k] = struct{}{}
+// 	}
+// 	for k := range ml {
+// 		resmap[k] = struct{}{}
+// 	}
+
+// 	return resmap
+// 	// fwList[key] = ml
+// }
 
 func AppExist(appname string, c context.Context) (bool, []string) {
 	// appconf := Arch_config{}
@@ -623,4 +921,18 @@ func (v *Arch_config) RMArch(c context.Context) {
 	consulhelp.DelConfigFull(*constset.ConfArchPrefix+v.Application.Name, c)
 	consulhelp.DelConfigFull(*constset.ConfOrgPrefix+v.Application.Name, c)
 	// consulhelp.DelConfig(*constset.ConfArchPrefix, v.Application.Team, v.Application.Project, v.Application.Name)
+}
+
+func removeDuplicateElement(target []string) []string {
+	result := make([]string, 0, len(target))
+	temp := map[string]struct{}{}
+	var tmpstr string
+	for _, item := range target {
+		if _, ok := temp[item]; !ok {
+			tmpstr = strings.Trim(item, " ")
+			temp[tmpstr] = struct{}{}
+			result = append(result, tmpstr)
+		}
+	}
+	return result
 }

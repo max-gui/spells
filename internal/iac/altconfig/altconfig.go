@@ -19,7 +19,7 @@ import (
 
 func Arch_commits(commitinfo CommitCheckHookInfo, install bool, c context.Context) {
 	// var archr *git.Repository
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	var iacr *git.Repository
 	if install {
 		gitres := githelp.UpdateAll(c)
@@ -132,7 +132,7 @@ func Arch_commits(commitinfo CommitCheckHookInfo, install bool, c context.Contex
 }
 
 func Tmpt(filesinfo []githelp.Writeinfo, repoUrl, branch, repoPath string, install bool, c context.Context) {
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	if install {
 		repor, err := githelp.CloneGetrepo(repoUrl, branch, repoPath, c)
 		if err != nil && err != git.NoErrAlreadyUpToDate {
@@ -143,10 +143,15 @@ func Tmpt(filesinfo []githelp.Writeinfo, repoUrl, branch, repoPath string, insta
 	}
 }
 
-func Arch_commit(filecontentinfo archfig.FileContentInfo, repourl string, install bool, c context.Context) ([]githelp.Writeinfo, []archfig.Arch_config) {
+type Archalt struct {
+	Arch_info archfig.Arch_config
+	Org_info  archfig.Arch_config
+}
+
+func Arch_commit(filecontentinfo archfig.FileContentInfo, repourl string, install bool, c context.Context) ([]githelp.Writeinfo, []Archalt) {
 	var changes []githelp.Writeinfo
-	var archalts []archfig.Arch_config
-	log := logagent.Inst(c)
+	var archalts []Archalt //archfig.Arch_config
+	log := logagent.InstArch(c)
 	if strings.Contains(filecontentinfo.Path, ".yaml") {
 
 		if strings.Contains(filecontentinfo.Status, "R") {
@@ -163,7 +168,8 @@ func Arch_commit(filecontentinfo archfig.FileContentInfo, repourl string, instal
 				changes, _ = ArchAltGenWithChanges(appconf, install, true, c)
 				appconf.RMArch(c)
 			} else if filecontentinfo.Status == "A" || filecontentinfo.Status == "M" {
-				appconf := archfig.GetArchfigByGitContentSin(filecontentinfo.Content, appfname, false, c)
+				orgconf := archfig.GenArchConfFromBytes([]byte(filecontentinfo.Content), c)
+				appconf := archfig.GetArchfigByGitContentSin(orgconf, appfname, false, c)
 				appconf.Application.Repositry = repourl
 				if filecontentinfo.Status == "A" {
 					if flag, v := archfig.AppExist(appconf.Application.Name, c); flag {
@@ -176,7 +182,8 @@ func Arch_commit(filecontentinfo archfig.FileContentInfo, repourl string, instal
 
 				}
 
-				changes, archalts = ArchAltGenWithChanges(appconf, install, false, c)
+				changes, archalts = ArchAltGenWithChangesWithOrg(appconf, orgconf, install, false, c)
+
 			}
 		}
 	}
@@ -186,7 +193,7 @@ func Arch_commit(filecontentinfo archfig.FileContentInfo, repourl string, instal
 
 func Findarchfile(filenames map[string]struct{}, c context.Context) map[string]struct{} {
 	dirPth := constset.Archpath
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	var fullpath = map[string]struct{}{}
 	filepath.WalkDir(dirPth, func(path string, d os.DirEntry, err error) error {
@@ -207,12 +214,12 @@ func Findarchfile(filenames map[string]struct{}, c context.Context) map[string]s
 	return fullpath
 }
 
-func ArchAltGenWithChanges(appconf archfig.Arch_config, install bool, del bool, c context.Context) ([]githelp.Writeinfo, []archfig.Arch_config) {
+func ArchAltGenWithChangesWithOrg(appconf, orgconf archfig.Arch_config, install bool, del bool, c context.Context) ([]githelp.Writeinfo, []Archalt) {
 
 	var filesinfo = []githelp.Writeinfo{}
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	if appconf.Application.Ungenfig {
-		return filesinfo, []archfig.Arch_config{}
+		return filesinfo, []Archalt{}
 	}
 	dockstr, jenconfig, jenstr := archAltGen(appconf, c)
 	// changes = append(changes, basepath+"Jenkinsfile")
@@ -226,9 +233,20 @@ func ArchAltGenWithChanges(appconf archfig.Arch_config, install bool, del bool, 
 		filesinfo = append(filesinfo, githelp.Writeinfo{Filepath: basepath + "Dockerfile", Content: dockstr, Del: del})
 		filesinfo = append(filesinfo, githelp.Writeinfo{Filepath: basepath + "Jenkinsfile", Content: jenstr, Del: del})
 
-		return filesinfo, []archfig.Arch_config{appconf}
+		if orgconf.Application.Name == "" {
+
+			return filesinfo, []Archalt{{Arch_info: appconf}} // []archfig.Arch_config{appconf}
+		} else {
+
+			return filesinfo, []Archalt{{Arch_info: appconf, Org_info: orgconf}} // []archfig.Arch_config{appconf}
+		}
 	}
-	return filesinfo, []archfig.Arch_config{}
+	return filesinfo, []Archalt{}
+}
+
+func ArchAltGenWithChanges(appconf archfig.Arch_config, install bool, del bool, c context.Context) ([]githelp.Writeinfo, []Archalt) {
+
+	return ArchAltGenWithChangesWithOrg(appconf, archfig.Arch_config{}, install, del, c)
 }
 
 func archAltGen(appconf archfig.Arch_config, c context.Context) (string, jenfig.JenkinsInfo, string) {

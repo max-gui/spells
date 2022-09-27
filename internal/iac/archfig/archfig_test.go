@@ -4,22 +4,25 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
 	"testing"
 
+	"github.com/max-gui/consulagent/pkg/consulsets"
 	"github.com/max-gui/logagent/pkg/confload"
+	"github.com/max-gui/logagent/pkg/logsets"
 	"github.com/max-gui/spells/internal/pkg/constset"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 )
 
 func setup() {
-
+	*logsets.Apppath = "/Users/jimmy/Projects/hercules/spells"
+	*logsets.Port = "8080"
+	*consulsets.Consul_host = "http://consul-prod.paic.com.cn"
 	flag.Parse()
-	bytes := confload.Load()
+	bytes := confload.Load(context.Background())
 	constset.StartupInit(bytes, context.Background())
 }
 
@@ -42,9 +45,52 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+func Test_EnvResourceIgn(t *testing.T) {
+
+	c := context.Background()
+	appconf := GetArchfigSin("af-affe-security-gateway", c)
+	appconf.Environment.Resource["a"] = []string{"a", "-a"}
+	assert.Contains(t, appconf.Environment.Resource["a"], "a")
+	assert.Contains(t, appconf.Environment.Resource["a"], "-a")
+
+	resconf := GenArchConfigSinFrominst(appconf, "af-affe-security-gateway", false, c)
+
+	assert.NotContains(t, resconf.Environment.Resource["a"], "a")
+	assert.NotContains(t, resconf.Environment.Resource["a"], "-a")
+
+}
+
+func Test_setNetworkList(t *testing.T) {
+
+	c := context.Background()
+	appconf := GetArchfigSin("af-affe-security-gateway", c)
+	appconf.Environment.Expose.Clusternet.Open = true
+	appconf.Environment.Expose.Ptrnet.Open = false
+	appconf.Environment.Expose.Internet.Visible = true
+	appconf.Environment.Expose.Intranet.Visible = false
+	appconf.Environment.Expose.Intranet.Blacklist = []string{"a", "b"}
+	// appconf.Environment.Expose.Intranet.Blacklist = []string{"a", "b"}
+	// appconf.FireWallRefresh(appconf, c)
+	appconf.FireWallRefresh4Wthie(c)
+
+	app2conf := GetArchfigSin("af-affe-security-gateway", c)
+	app2conf.Environment.Expose.Clusternet.Open = false
+	app2conf.Environment.Expose.Ptrnet.Open = true
+	app2conf.Environment.Expose.Internet.Visible = false
+	app2conf.Environment.Expose.Internet.Blacklist = []string{"a", "b"}
+	app2conf.Environment.Expose.Intranet.Visible = true
+	// app2conf.FireWallRefresh(appconf, c)
+	appconf.FireWallRefresh4Wthie(c)
+	// setNetworkList(true, true, []string{}, "channel-app-frontend", *constset.ConfwhitePrefix+"/clusternet/"+"channel-app-frontend", c)
+	// setNetworkList(true, true, []string{}, "aflm-common-order-data-process", *constset.ConfwhitePrefix+"/clusternet/"+"aflm-common-order-data-process", c)
+
+	// setNetworkList(false, true, []string{}, "vv", *constset.ConfwhitePrefix+"/clusternet/"+"vv", c)
+	// setNetworkList(false, true, []string{}, "aa", *constset.ConfwhitePrefix+"/clusternet/"+"aa", c)
+}
+
 func Test_GenDefig(t *testing.T) {
 	// RMArch()
-	bytes, err := ioutil.ReadFile(constset.Archpath + "team0/project0/iactest2.yaml")
+	bytes, err := os.ReadFile(constset.Archpath + "team0/project0/iactest2.yaml")
 	c := context.Background()
 	if err != nil {
 		log.Panic(err)

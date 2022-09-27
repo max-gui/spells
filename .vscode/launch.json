@@ -12,9 +12,10 @@
             "program": "${workspaceFolder}/cmd/arch-spells",
             "env": {},
             "args": [
-                "-apppath=/Users/max/Projects/hercules/spells",
+                "-apppath=/Users/jimmy/Projects/hercules/spells",
                 "-port=8080",
-                "-consulhost=http://consul-prod.kube.com",
+                "-consulhost=http://consul-prod.paic.com.cn",
+                "-consolvername=af-hercules.paic.com.cn/service/fls-aflm-prod/consolver"
                 // "-jsonlog=true"
             ]
         },
@@ -25,8 +26,9 @@
             "mode": "test",
             "program": "${workspaceFolder}",
             "args": [
-                "-test.run",
-                "-apppath=/Users/max/Downloads/spells",
+                "-apppath=/Users/jimmy/Projects/hercules/spells",
+                "-port=8080",
+                "-consulhost=http://consul-prod.paic.com.cn",
                 // "-v",
                 // "-cover=true",
 

@@ -3,7 +3,7 @@ package defig
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"sort"
 
 	"github.com/gomodule/redigo/redis"
@@ -20,33 +20,38 @@ type Defconf struct {
 	}
 	Defualtinfo struct {
 		Cmdarg struct {
-			Args map[string]string
-			Ign  map[string][]string
-		}
+			Args map[string][]string `yaml:"args,omitempty"`
+			Ign  map[string][]string `yaml:"ign,omitempty"`
+		} `yaml:"cmdarg,omitempty"`
 
 		Build map[string]struct {
-			Cmd       string
-			Arg       string
-			Config    string
-			Jenkignor []string
-		}
-		Output string
+			Cmd       string   `yaml:"cmd,omitempty"`
+			Arg       string   `yaml:"arg,omitempty"`
+			Config    string   `yaml:"config,omitempty"`
+			Jenkignor []string `yaml:"jenkignor,omitempty"`
+		} `yaml:"build,omitempty"`
 
-		Resource map[string][]string
+		Sidecar struct {
+			Neighbour map[string][]string `yaml:"neighbour,omitempty"`
+			Ign       map[string][]string `yaml:"ign,omitempty"`
+		} `yaml:"sidecar,omitempty"`
+		Output   string              `yaml:"output,omitempty"`
+		Port     string              `yaml:"port,omitempty"`
+		Resource map[string][]string `yaml:"resource,omitempty"`
 		// Volumes  []string
 		Capacity map[string]struct {
-			Capacity string
-			Replica  int
-			Cpu      string
-			Mem      string
-		}
+			Capacity string `yaml:"capacity,omitempty"`
+			Replica  int    `yaml:"replica,omitempty"`
+			Cpu      string `yaml:"cpu,omitempty"`
+			Mem      string `yaml:"mem,omitempty"`
+		} `yaml:"capacity,omitempty"`
 		Deploy struct {
-			Limited  []string
+			Limited  []string `yaml:"limited,omitempty"`
 			Strategy []struct {
-				Flow string
-				Env  []string
-			}
-		}
+				Flow string   `yaml:"flow,omitempty"`
+				Env  []string `yaml:"env,omitempty"`
+			} `yaml:"strategy,omitempty"`
+		} `yaml:"deploy,omitempty"`
 	}
 }
 
@@ -76,12 +81,19 @@ func GetDefconfig(c context.Context) Defconf {
 	}
 }
 
+func ClearDefconfig() {
+	defconfig = Defconf{}
+	rediscli := redisops.Pool().Get()
+	defer rediscli.Close()
+	rediscli.Do("EXPIRE", "arch-spell-default", 0)
+}
+
 // var dockerpath = constset.Apppath + constset.PthSep + "repo" + constset.PthSep + "temple" + constset.PthSep
 func GenDefig(isinstall bool, c context.Context) Defconf {
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	dirPth := constset.Defconfpath // constset.Templepath + "defaultconfig.yaml"
-	str, err := ioutil.ReadFile(dirPth)
+	str, err := os.ReadFile(dirPth)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -93,10 +105,14 @@ func GenDefig(isinstall bool, c context.Context) Defconf {
 
 func GenDefigFrom(content []byte, isinstall bool, c context.Context) Defconf {
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	log.Println(string(content))
 	defconf := Defconf{}
-	yaml.Unmarshal(content, &defconf)
+	err := yaml.Unmarshal(content, &defconf)
+
+	if err != nil {
+		log.Panic(err)
+	}
 
 	if isinstall {
 

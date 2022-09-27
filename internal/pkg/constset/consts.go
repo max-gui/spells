@@ -19,7 +19,8 @@ const PthSep = string(os.PathSeparator)
 
 var (
 	Consolvername, RedisPwd, IacBranch, Gitname, Gitemail                                                                                                *string
-	Repopathname, envset, Commitmsg, ConfArchPrefix, ConfOrgPrefix, ConfResPrefix, ConfTeamProjPrefix, ConfWatchPrefix                                   *string
+	Repopathname, envset, Commitmsg, ConfArchPrefix, ConfOrgPrefix, ConfResPrefix, ConfTeamProjPrefix                                                    *string
+	ConfWatchPrefix, ConfbalckPrefix, ConfwhitePrefix, ConfFabioPrefix, ConfmanBalckPrefix, ConfTraefikPrefix                                            *string
 	EnvSet                                                                                                                                               []string
 	Reppath, Archpath, Iacpath, Templepath, DbPath, Defconfpath, Archname, Iacname, Templname, Dbname, Sshkey, Archurl, IacUrl, Dburl, Codeurl, Templurl string
 )
@@ -38,7 +39,7 @@ func StartupInit(bytes []byte, c context.Context) {
 	Templname = "Templrepo"
 	Dbname = "Dbrepo"
 	readkey, err := ioutil.ReadFile(*logsets.Apppath + string(os.PathSeparator) + "code_key")
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -63,19 +64,19 @@ func StartupInit(bytes []byte, c context.Context) {
 	yaml.Unmarshal(bytes, confmap)
 	*consulsets.Acltoken = confmap["af-arch"].(map[interface{}]interface{})["resource"].(map[interface{}]interface{})["private"].(map[interface{}]interface{})["acl-token"].(string)
 	consulsets.StartupInit(*consulsets.Acltoken)
-	redisopsUrl := confmap["af-arch"].(map[interface{}]interface{})["resource"].(map[interface{}]interface{})["redis-sentinel-proxy"].(map[interface{}]interface{})["url"].(string)
+	redisopsUrl := confmap["af-arch"].(map[interface{}]interface{})["resource"].(map[interface{}]interface{})["redis-cluster-predixy"].(map[interface{}]interface{})["url"].(string)
 	// redisops.Url = confmap["url"].(string)
-	redisopsPwd := confmap["af-arch"].(map[interface{}]interface{})["resource"].(map[interface{}]interface{})["redis-sentinel-proxy"].(map[interface{}]interface{})["password"].(string)
+	redisopsPwd := confmap["af-arch"].(map[interface{}]interface{})["resource"].(map[interface{}]interface{})["redis-cluster-predixy"].(map[interface{}]interface{})["password"].(string)
 	// redisops.Pwd = confmap["password"].(string)
 	redisops.StartupInit(redisopsUrl, redisopsPwd)
 }
 
 func init() {
 
-	Consolvername = flag.String("consolvername", "127.0.0.1:8080", "confsolver's service name")
+	Consolvername = flag.String("consolvername", "127.0.0.1:8181", "confsolver's service name")
 	IacBranch = flag.String("iacbranch", "iac", "iac git branch")
 	envset = flag.String("envset", "sit,uat,prod", "envset spilt by ','")
-	// Apppath = flag.String("apppath", "/Users/max/Downloads/spells", "app root path")
+	// Apppath = flag.String("apppath", "/Users/jimmy/Downloads/spells", "app root path")
 	Repopathname = flag.String("repo", "repo", "repo path name")
 	Gitname = flag.String("gitname", "", "git user name")
 	Gitemail = flag.String("gitemail", "", "git user email")
@@ -85,6 +86,11 @@ func init() {
 	ConfResPrefix = flag.String("ConfResPrefix", "ops/resource/", "resource prefix for consul")
 	ConfTeamProjPrefix = flag.String("ConfTeamProjPrefix", "ops/iac/team-proj", "teamproj prefix for consul")
 	ConfWatchPrefix = flag.String("ConfWatchPrefix", "ops/", "watch prefix for consul")
+	ConfbalckPrefix = flag.String("ConfbalckPrefix", "ops/iac/blacklist/", "black prefix for consul")
+	ConfwhitePrefix = flag.String("ConfwhitePrefix", "ops/iac/whitelist/", "white prefix for consul")
+	ConfFabioPrefix = flag.String("ConfFabioPrefix", "ops/iac/fabio", "fabio prefix for consul")
+	ConfmanBalckPrefix = flag.String("ConfmanBalckPrefix", "ops/blacklist", "manual black list prefix for consul")
+	ConfTraefikPrefix = flag.String("ConfTraefikPrefix", "ops/traefik", "traefik prefix for consul")
 
 }
 

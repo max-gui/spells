@@ -3,13 +3,14 @@ package iac
 import (
 	"bufio"
 	"context"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/max-gui/consulagent/pkg/consulhelp"
+	"github.com/max-gui/spells/internal/githelp"
 	"github.com/max-gui/spells/internal/iac/archfig"
+	"github.com/max-gui/spells/internal/iac/defig"
 	"github.com/max-gui/spells/internal/iac/templ"
 	"github.com/max-gui/spells/internal/pkg/constset"
 	"gopkg.in/yaml.v2"
@@ -76,6 +77,13 @@ func ClsAppfig() {
 func Clearcachelocal() {
 	ClsAppfig()
 	templ.ClsGempl()
+}
+
+func ClearcacheAll(c context.Context) {
+	githelp.UpdateAll(c)
+	ClsAppfig()
+	templ.ClsGempl()
+	defig.ClearDefconfig()
 }
 
 func GetKeyres(keyenvs []struct {
@@ -146,7 +154,7 @@ func Gen4old(appid, appname string, c context.Context) archfig.Arch_config {
 	var archconf archfig.Arch_config
 	// dir, _ = ioutil.ReadDir(iacDir)
 	{
-		iacDir, _ := ioutil.ReadDir(iacPath)
+		iacDir, _ := os.ReadDir(iacPath)
 		var AppId, giturl, Cmd, CmdArgs, Pom, Output, AppName, Env, PrePackage, Cpu, Mem, Rtargs string
 		var Replica int
 		var ExpoviceOk bool
@@ -179,7 +187,7 @@ func Gen4old(appid, appname string, c context.Context) archfig.Arch_config {
 				} else {
 					continue
 				}
-				bytes, err := ioutil.ReadFile(iacfilepath)
+				bytes, err := os.ReadFile(iacfilepath)
 				// file, err := os.Open(dirPth + fi.Name() + string(os.PathSeparator) + subfi.Name() + string(os.PathSeparator) + iacfi.Name())
 				if err != nil {
 					log.Panic(err)
@@ -287,7 +295,7 @@ func Gen4old(appid, appname string, c context.Context) archfig.Arch_config {
 					}
 				}
 			} else if iacfi.Name() == "Dockerfile" {
-				bytes, err := ioutil.ReadFile(iacfilepath)
+				bytes, err := os.ReadFile(iacfilepath)
 				if err != nil {
 					log.Panic(err)
 				}
@@ -386,7 +394,7 @@ func Gen4old(appid, appname string, c context.Context) archfig.Arch_config {
 		archconf.Deploy.Build.Cmd = strings.Trim(Cmd, "'")
 		archconf.Deploy.Build.Output = strings.Trim(Output, "'")
 		archconf.Deploy.Build.Pkgconf = Pom
-		archconf.Deploy.Runtime.Args = Rtargs
+		archconf.Deploy.Runtime.Args = strings.Split(Rtargs, " ")
 		archconf.Application.Ungenfig = true
 
 		// archfigs = append(archfigs, archfig)

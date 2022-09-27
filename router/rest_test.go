@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -73,7 +73,7 @@ func Test_ArchDef_commit_check(t *testing.T) {
 	router.ServeHTTP(w, req)
 	result := w.Result()
 	defer result.Body.Close()
-	resbody, _ := ioutil.ReadAll(result.Body)
+	resbody, _ := io.ReadAll(result.Body)
 
 	resstr := string(resbody)
 	resjsonmap := make(map[string]interface{})

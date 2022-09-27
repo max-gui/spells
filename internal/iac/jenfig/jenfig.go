@@ -23,9 +23,14 @@ type JenkinsInfo struct {
 	Jenkignor  []string
 	Type       string
 	Repositry  string
+	Appconf    archfig.Arch_config
 }
 
 func GenJenfig(app_conf archfig.Arch_config) JenkinsInfo {
+
+	if app_conf.Application.Language == "" || app_conf.Application.NoSource {
+		app_conf.Deploy.Build.Jenkignor = append(app_conf.Deploy.Build.Jenkignor, "ssdlc")
+	}
 
 	temparg := JenkinsInfo{
 		Cmd:     app_conf.Deploy.Build.Cmd,
@@ -40,6 +45,7 @@ func GenJenfig(app_conf archfig.Arch_config) JenkinsInfo {
 		Jenkignor: app_conf.Deploy.Build.Jenkignor,
 		Type:      app_conf.Application.Type,
 		Repositry: app_conf.Application.Repositry,
+		Appconf:   app_conf,
 	}
 
 	return temparg
@@ -62,8 +68,11 @@ func GenJenfile(jenfig JenkinsInfo, c context.Context) string {
 	// a := Arch_config{}
 	// yaml.Unmarshal(str, &a)
 	// t.Log(a)
-	name := "jenkins." + jenfig.Type
-	result := templ.GemplFrom(name, jenfig, c)
+	// name := "jenkins." + jenfig.Type
+	// result := templ.GemplFrom(name, jenfig, c)
+	name := "jenkins.groovy"
+
+	result := templ.GemplFromType(name, jenfig.Type, jenfig, c)
 
 	return result
 }

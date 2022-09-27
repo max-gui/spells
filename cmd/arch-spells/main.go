@@ -20,8 +20,8 @@ func main() {
 	// var Argsetmap = make(map[string]interface{})
 
 	flag.Parse()
-	bytes := confload.Load()
 	c := logagent.GetRootContextWithTrace()
+	bytes := confload.Load(c)
 	constset.StartupInit(bytes, c)
 	// constset.StartupInit()
 	// config := consulhelp.Getconfaml(*constset.ConfResPrefix, "redis", "redis-sentinel-proxy", *constset.Appenv)

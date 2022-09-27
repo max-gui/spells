@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"io/fs"
-	"io/ioutil"
+	"flag"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -16,6 +16,8 @@ import (
 	"github.com/hashicorp/consul/api/watch"
 	"github.com/max-gui/consulagent/pkg/consulhelp"
 	"github.com/max-gui/consulagent/pkg/consulsets"
+	"github.com/max-gui/logagent/pkg/confload"
+	"github.com/max-gui/logagent/pkg/logsets"
 	"github.com/max-gui/redisagent/pkg/redisops"
 	"github.com/max-gui/spells/internal/iac/altconfig"
 	"github.com/max-gui/spells/internal/iac/archfig"
@@ -25,6 +27,8 @@ import (
 	"github.com/max-gui/spells/internal/iac/valfig"
 	"github.com/max-gui/spells/internal/pkg/constset"
 	"github.com/max-gui/spells/internal/pkg/jenkinsops"
+	"github.com/stretchr/testify/assert"
+	"github.com/xuri/excelize/v2"
 
 	"gopkg.in/yaml.v2"
 )
@@ -39,7 +43,13 @@ func setup() {
 	// flag.Parse()
 	// plaintext = "123"
 	// cryptedHexText = "1bda1896724a4521cfb7f38646824197929cd1"
-	constset.StartupInit(nil, context.Background())
+	*logsets.Apppath = "/Users/jimmy/Projects/hercules/spells"
+	*logsets.Port = "8080"
+	*consulsets.Consul_host = "http://consul-prod.paic.com.cn"
+
+	flag.Parse()
+	bytes := confload.Load(context.Background())
+	constset.StartupInit(bytes, context.Background())
 	// testpath = makeconfiglist()
 	pthSep = string(os.PathSeparator)
 	orgconfigPth = abstestpath + pthSep + "orgconfig" + pthSep
@@ -237,6 +247,109 @@ func teardown() {
 
 // }
 
+func Test_cmdargIgn(t *testing.T) {
+
+	c := context.Background()
+	appconf := archfig.GetArchfigSin("af-affe-security-gateway", c)
+	appconf.Deploy.Runtime.Args = []string{" aa bb ", " -XX:+UnlockExperimentalVMOptions "}
+	appconf.Deploy.Runtime.Ign = map[string][]string{"test": {" aa bb ", " -XX:+UseCGroupMemoryLimitForHeap  "}}
+
+	realarch := archfig.GenArchConfigSinFrominst(appconf, appconf.Application.Name, false, c)
+	log.Println(realarch.Deploy.Runtime.Ign["prod"])
+
+	// log.Println(realarch)
+
+	testvf := valfig.GenValfig(realarch, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "test", c)
+	testval := valfig.GenValfile(testvf, c)
+	log.Println(testval)
+	ClearcacheAll(c)
+	appconf = archfig.GetArchfigSin("af-affe-security-gateway", c)
+	appconf.Deploy.Runtime.Args = []string{" aa bb ", " -XX:+UnlockExperimentalVMOptions "}
+	appconf.Deploy.Runtime.Ign = map[string][]string{"test": {" aa bb ", " -XX:+UseCGroupMemoryLimitForHeap  "}}
+	realarch = archfig.GenArchConfigSinFrominst(appconf, appconf.Application.Name, false, c)
+	log.Println(realarch.Deploy.Runtime.Ign["prod"])
+	// log.Println(realarch)
+	prodvf := valfig.GenValfig(realarch, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "prod", c)
+	prodval := valfig.GenValfile(prodvf, c)
+	log.Println(prodval)
+	assert.Contains(t, realarch.Deploy.Runtime.Args, "-javaagent:/wls/wls81/lbagent-1.0.0.jar=http://\\$(POD_IP)/agentcall/$ServiceName/$Buildenv/$dc/")
+	log.Println(realarch)
+}
+
+func Test_valuesfull(t *testing.T) {
+
+	c := context.Background()
+	appconf := archfig.Arch_config{}
+
+	bytes, _ := os.ReadFile("/Users/jimmy/Projects/hercules/iac-tools/charon/arch/af-charon.yaml")
+	yaml.Unmarshal(bytes, &appconf)
+
+	// appconf.Application.Name = "test"
+	appconf.Application.Type = "java"
+	appconf.Application.Service = []string{"abc", "123"}
+	appconf.Deploy.Sidecar.Neighbour = []string{"nginx-exporter", "nginx-exporter"}
+	// appconf.Application.Resource = map[string]string{"a": "1", "xxl": "2"}
+	appconf.Environment.Resource = map[string][]string{"pinpoint": {"detector"}}
+
+	valconfig := valfig.GenValfig(appconf, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "test", c)
+
+	valfile := valfig.GenValfile(valconfig, c)
+	log.Println(valfile)
+
+	appconf.Application.Resource["xxl-viechle"] = "xxl"
+	valconfig = valfig.GenValfig(appconf, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "test", c)
+
+	valfile = valfig.GenValfile(valconfig, c)
+	log.Println(valfile)
+
+	appconf.Environment.EnHostportable = true
+	appconf.Environment.IsHostNetwork = true
+	appconf.Environment.Port = ""
+	appconf2 := archfig.GenArchConfigSinFrominst(appconf, appconf.Application.Name, false, c)
+	valconfig = valfig.GenValfig(appconf2, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "test", c)
+
+	valfile = valfig.GenValfile(valconfig, c)
+	log.Println(valfile)
+	// dockerfile := dockfig.GenRuntimeDocfile(appconf, valconfig)
+	// dockerfile := dockfig.GenDocfile(appconf, c)
+	// log.Print(dockerfile)
+}
+
+func Test_setNetworkList(t *testing.T) {
+
+	c := context.Background()
+	appconf := archfig.GetArchfigSin("af-affe-security-gateway", c)
+	appconf.Environment.Expose.PrefixPath = "sdfwe/dsf"
+	appconf.Environment.Expose.Clusternet.Open = true
+	appconf.Environment.Expose.Ptrnet.Open = false
+	appconf.Environment.Expose.Internet.Visible = true
+	appconf.Environment.Expose.Internet.Blacklist = []string{"sdfwe/dsf/bsa", "sdfwe/dsf/dsfa/fed"}
+	appconf.Environment.Expose.Intranet.Visible = false
+	appconf.Environment.Expose.Intranet.Blacklist = []string{"sdfwe/dsf/a", "sdfwe/dsf/b"}
+	// appconf.Environment.Expose.Intranet.Blacklist = []string{"a", "b"}
+	// appconf.FireWallRefresh(appconf, c)
+
+	appconf = archfig.GenArchConfigSinFrominst(appconf, "af-affe-security-gateway", false, c)
+	appconf.FireWallRefresh4Wthie(c)
+
+	valconf := valfig.GenValfig(appconf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", c)
+	values := valfig.GenValfile(valconf, c)
+	log.Print(values)
+
+	app2conf := archfig.GetArchfigSin("af-affe-security-gateway", c)
+	app2conf.Environment.Expose.Clusternet.Open = false
+	app2conf.Environment.Expose.Ptrnet.Open = true
+	app2conf.Environment.Expose.Internet.Visible = false
+	app2conf.Environment.Expose.Internet.Blacklist = []string{"a", "b"}
+	app2conf.Environment.Expose.Intranet.Visible = true
+	// app2conf.FireWallRefresh(appconf, c)
+	appconf.FireWallRefresh4Wthie(c)
+
+	valconf = valfig.GenValfig(app2conf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", c)
+	values = valfig.GenValfile(valconf, c)
+	log.Print(values)
+}
+
 func GenValfig4envs(appconf archfig.Arch_config, envdcs []archfig.EnvInfo) map[string]valfig.ValuesInfo {
 	var res = make(map[string]valfig.ValuesInfo)
 	c := context.Background()
@@ -255,6 +368,7 @@ func Test_004(t *testing.T) {
 	}
 	defer file.Close()
 
+	c := context.Background()
 	scanner := bufio.NewScanner(file)
 	mmm := make(map[string]map[string]map[string]string)
 	for scanner.Scan() {
@@ -286,7 +400,7 @@ func Test_004(t *testing.T) {
 		dd["name"] = "fake.volumn"
 		tmp, _ := yaml.Marshal(dd)
 		strtmp := string(tmp)
-		consulhelp.Sendconfig2consul("volumn", "fakevolumn", env, strtmp)
+		consulhelp.Sendconfig2consul("volumn", "fakevolumn", env, strtmp, c)
 	}
 
 	for k, v := range mmm {
@@ -294,7 +408,7 @@ func Test_004(t *testing.T) {
 			if vv, ok := v[env]; ok {
 				tmp, _ := yaml.Marshal(vv)
 				strtmp := string(tmp)
-				consulhelp.Sendconfig2consul("volumn", k, env, strtmp)
+				consulhelp.Sendconfig2consul("volumn", k, env, strtmp, c)
 			} else {
 				dd := make(map[string]string)
 				for _, vvv := range v {
@@ -306,7 +420,7 @@ func Test_004(t *testing.T) {
 
 				tmp, _ := yaml.Marshal(dd)
 				strtmp := string(tmp)
-				consulhelp.Sendconfig2consul("volumn", k, env, strtmp)
+				consulhelp.Sendconfig2consul("volumn", k, env, strtmp, c)
 			}
 		}
 	}
@@ -318,7 +432,7 @@ func Test_003(t *testing.T) {
 		log.Panic(err)
 	}
 	defer file.Close()
-
+	c := context.Background()
 	scanner := bufio.NewScanner(file)
 	mmm := make(map[string]map[string]map[string]string)
 	mmmttt := make(map[string]string)
@@ -346,7 +460,7 @@ func Test_003(t *testing.T) {
 		dd["host"] = "fake.host"
 		tmp, _ := yaml.Marshal(dd)
 		strtmp := string(tmp)
-		consulhelp.Sendconfig2consul("hostAlias", "fakehost", env, strtmp)
+		consulhelp.Sendconfig2consul("hostAlias", "fakehost", env, strtmp, c)
 	}
 
 	for k, v := range mmm {
@@ -354,24 +468,36 @@ func Test_003(t *testing.T) {
 			if vv, ok := v[env]; ok {
 				tmp, _ := yaml.Marshal(vv)
 				strtmp := string(tmp)
-				consulhelp.Sendconfig2consul("hostAlias", k, env, strtmp)
+				consulhelp.Sendconfig2consul("hostAlias", k, env, strtmp, c)
 			} else {
 				dd := make(map[string]string)
 				dd["real-id"] = "fakehost"
 				tmp, _ := yaml.Marshal(dd)
 				strtmp := string(tmp)
-				consulhelp.Sendconfig2consul("hostAlias", k, env, strtmp)
+				consulhelp.Sendconfig2consul("hostAlias", k, env, strtmp, c)
 			}
 		}
 	}
 }
+
 func Test_00002(t *testing.T) {
 	c := context.Background()
+
 	ddd := archfig.GenArchConfigFrom("team0/project0/iactest2.yaml", "team0", "project0", "iactest2", false, c)
 	bytes, _ := yaml.Marshal(ddd)
 	log.Print(string(bytes))
 	bytes, _ = yaml.Marshal(Gen4old("fls-afch", "afch-authservice", c))
 	log.Print(string(bytes))
+}
+
+func Test_genvalfile(t *testing.T) {
+
+	c := context.Background()
+	appconf := archfig.GetArchfigSin("aflm-cmnsrv-customer-gateway", c)
+	valcofn := valfig.GenValfig(appconf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", c)
+	str := valfig.GenValfile(valcofn, c)
+	log.Print(str)
+
 }
 
 func Test_002(t *testing.T) {
@@ -409,8 +535,8 @@ func Test_002(t *testing.T) {
 	bytess, _ = yaml.Marshal(mmmttt)
 	log.Print(string(bytess))
 	dirPth := constset.Iacpath + "app" + constset.PthSep
-	dir, _ := ioutil.ReadDir(dirPth)
-	var subdir, iacdir []fs.FileInfo
+	dir, _ := os.ReadDir(dirPth)
+	var subdir, iacdir []os.DirEntry
 	var nonhost []struct {
 		Host string
 		Ip   string
@@ -451,7 +577,7 @@ func Test_002(t *testing.T) {
 
 	for _, fi := range dir {
 		if fi.IsDir() && !strings.HasPrefix(fi.Name(), ".") && !strings.HasPrefix(fi.Name(), "iactest") && fi.Name() != "iac" { // 目录, 递归遍历team
-			subdir, _ = ioutil.ReadDir(dirPth + fi.Name())
+			subdir, _ = os.ReadDir(dirPth + fi.Name())
 			for _, subfi := range subdir { //proj
 
 				if str, _ := redis.String(rediscli.Do("GET", dirPth+fi.Name()+string(os.PathSeparator)+subfi.Name())); str != "" {
@@ -462,7 +588,7 @@ func Test_002(t *testing.T) {
 
 				}
 				if subfi.IsDir() && !strings.HasPrefix(subfi.Name(), ".") {
-					iacdir, _ = ioutil.ReadDir(dirPth + fi.Name() + string(os.PathSeparator) + subfi.Name())
+					iacdir, _ = os.ReadDir(dirPth + fi.Name() + string(os.PathSeparator) + subfi.Name())
 					var AppId, giturl, Cmd, CmdArgs, Pom, Output, AppName, Env, PrePackage, Cpu, Mem, Rtargs string
 					var Replica int
 					var ExpoviceOk bool
@@ -494,7 +620,7 @@ func Test_002(t *testing.T) {
 							} else {
 								continue
 							}
-							bytes, err := ioutil.ReadFile(dirPth + fi.Name() + string(os.PathSeparator) + subfi.Name() + string(os.PathSeparator) + iacfi.Name())
+							bytes, err := os.ReadFile(dirPth + fi.Name() + string(os.PathSeparator) + subfi.Name() + string(os.PathSeparator) + iacfi.Name())
 							// file, err := os.Open(dirPth + fi.Name() + string(os.PathSeparator) + subfi.Name() + string(os.PathSeparator) + iacfi.Name())
 							if err != nil {
 								log.Panic(err)
@@ -631,7 +757,7 @@ func Test_002(t *testing.T) {
 								}
 							}
 						} else if iacfi.Name() == "Dockerfile" {
-							bytes, err := ioutil.ReadFile(dirPth + fi.Name() + string(os.PathSeparator) + subfi.Name() + string(os.PathSeparator) + iacfi.Name())
+							bytes, err := os.ReadFile(dirPth + fi.Name() + string(os.PathSeparator) + subfi.Name() + string(os.PathSeparator) + iacfi.Name())
 							if err != nil {
 								log.Panic(err)
 							}
@@ -730,7 +856,7 @@ func Test_002(t *testing.T) {
 					archfig.Deploy.Build.Cmd = strings.Trim(Cmd, "'")
 					archfig.Deploy.Build.Output = strings.Trim(Output, "'")
 					archfig.Deploy.Build.Pkgconf = Pom
-					archfig.Deploy.Runtime.Args = Rtargs
+					archfig.Deploy.Runtime.Args = strings.Split(Rtargs, " ")
 					archfig.Application.Ungenfig = true
 
 					// archfigs = append(archfigs, archfig)
@@ -768,9 +894,9 @@ func Test_002(t *testing.T) {
 	for _, v := range archfigs {
 		log.Println(v.Application.Name + "," + v.Application.Repositry + ",")
 	}
-	// for _, v := range nonvol {
-	// 	log.Println(v.Name + "," + v.Env + "," + v.HostPath + "," + v.MountPath + "," + strings.TrimPrefix(v.Path, dirPth))
-	// }
+	for _, v := range nonvol {
+		log.Println(v.Name + "," + v.Env + "," + v.HostPath + "," + v.MountPath + "," + strings.TrimPrefix(v.Path, dirPth))
+	}
 
 	// // bbbb, _ := json.Marshal(nonhost)
 	// // log.Print(string(bbbb))
@@ -836,6 +962,18 @@ func startWatch() {
 func Test_0000(t *testing.T) {
 	ctx := context.Background()
 	jenkins, _, _ := jenkinsops.GetJenkins("test", ctx)
+	// jenkins.GetJob(ctx, "iac-fls-usedcar-trans-ms")
+	//m :=map[interface{}]interface{}{}"pub_zlqrdevops:Devops#0419""
+
+	flag := jenkinsops.IsSameJob(jenkins, "fls-usedcar-trans-ms", "fls-cgj", ctx)
+	log.Print(flag)
+	flag = jenkinsops.IsSameJob(jenkins, "fls-usedcar-trans-ms", "fls-ccgj", ctx)
+	log.Print(flag)
+
+	job, _ := jenkins.GetJob(ctx, "iac-fls-usedcar-trans-ms")
+
+	log.Print(job.Raw.Scm)
+
 	b, _ := jenkins.GetBuild(ctx, "fls-aflm-risk-management", 68)
 	log.Print(b.GetResult())
 
@@ -852,29 +990,6 @@ func Test_0000(t *testing.T) {
 	if len(fullpath) > 0 {
 		log.Panicf("these apps need to be removed:%v", fullpath)
 	}
-}
-
-func dd() string {
-
-	log.Panic("dd")
-	return ""
-}
-
-func bb() (bool, string) {
-	res := false
-	defer func() {
-		if e := recover(); e != nil {
-			// res = true
-		}
-	}()
-
-	mm := dd()
-	res = true
-	return res, mm
-}
-
-func Test_f110(t *testing.T) {
-	log.Print(bb())
 }
 
 func Test_f00(t *testing.T) {
@@ -945,8 +1060,8 @@ func Test_f00(t *testing.T) {
 		for _, deployvs := range v {
 			for _, deployv := range deployvs {
 				// envstr := deployv.Env + "-" + deployv.Dc
-				envstr := deployv.Env + deployv.Dc
-				envstr = strings.TrimSuffix(envstr, "LFB")
+				// envstr := deployv.Env + deployv.Dc
+				// envstr = strings.TrimSuffix(envstr, "LFB")
 				envinfos = append(envinfos, archfig.EnvInfo{Env: deployv.Env, Dc: deployv.Dc})
 			}
 		}
@@ -991,6 +1106,9 @@ func Test_dd(t *testing.T) {
 
 	// bytes, _ := ioutil.ReadFile("/Users/max/Downloads/spells/pv-core-secgw.yml")
 	c := context.Background()
+
+	// str, _ := ioutil.ReadFile("/Users/max/Downloads/dd.yaml")
+	// archfig.GenArchConfig(str, "front-end", "fls-cgj-vue-pdf", "fls-cgj-vue-pdf", false, c)
 	app_conf := archfig.GetAppconfig("fls-aflm-fund-loan", "", "", c)
 	app_conf.Deploy.Build.Jenkignor = append(app_conf.Deploy.Build.Jenkignor, "ee")
 	app_conf.Deploy.Build.Jenkexec = append(app_conf.Deploy.Build.Jenkexec, "bb")
@@ -999,6 +1117,7 @@ func Test_dd(t *testing.T) {
 	// app_conf := archfig.GenArchConfigSin(bytes, "pv-core-secgw", false)
 	// app_conf := archfig.GenArchConfig(bytes, "arch", "hercules", "arch-spells", false)
 	log.Print(app_conf.Deploy.Build.Jenkignor)
+	// app_conf.Environment.NodeSelector = map[string]string{"test": "test"}
 	// log.Print(app_conf.Deploy.Runtime.Args)
 	valconf := valfig.GenValfig(app_conf, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "test", c)
 
@@ -1008,6 +1127,298 @@ func Test_dd(t *testing.T) {
 	// log.Print(dockfig.GenDocfile(app_conf))
 	// log.Print(dockfig.GenRuntimeDocfile(app_conf, valconf))
 	// log.Print(jenfig.GenJenfile(jenfig.GenJenfig(app_conf)))
+}
+
+func Test_unsecapps(t *testing.T) {
+	// app_conf := archfig.Arch_config{}
+	// team := "team"
+	// proj := "proj"
+	// appfname := "app"
+	// app_conf.Application.Name = appfname
+	// app_conf.Application.Appid = "SS"
+	// app_conf.Application.Repositry = "ssh"
+	// app_conf.Application.Type = "h5"
+	// app_conf.Environment.Strategy = map[string]struct {
+	// 	Capacity string
+	// 	Cpu      string
+	// 	Mem      string
+	// 	Replica  int
+	// }{"test": {Capacity: "mini"}}
+	// app_conf.Deploy.Build.Output = "dd"
+	// bytes, _ := yaml.Marshal(app_conf)
+
+	// bytes, _ := ioutil.ReadFile("/Users/max/Downloads/spells/pv-core-secgw.yml")
+	kvs := consulhelp.GetConfigs("/ops/iac/arch", "", context.Background())
+
+	var archconf archfig.Arch_config
+
+	teammap := map[string]string{"front-end": "大前端", "bmp": "大中台", "pv-core": "乘用车", "cgj": "车服务", "arch": "架构", "autoheavytruck": "商用车", "autoqa": "测试", "data": "大数据", "css": "pmo", "pmo": "pmo"}
+	envarr := map[string]string{"prod": "512Mi", "uat": "256Mi", "test": "256Mi"}
+	// log.Print("团队,项目,应用,环境,内存,建议内存,代码库地址")
+
+	// f := func(path string, processor func(*bufio.Writer)) {
+	// 	os.Remove(path)
+	// 	f, _ := os.Create(path)
+	// 	defer f.Close()
+
+	// 	buff := bufio.NewWriter(f)
+	// 	processor(buff)
+	// 	buff.Flush()
+	// }
+
+	writeExecel := func(path string, processor func(*excelize.File)) {
+		os.Remove(path)
+
+		excel := excelize.NewFile()
+		defer excel.Close()
+
+		processor(excel)
+		excel.SaveAs(path)
+	}
+
+	// excel := excelize.NewFile()
+	// excel.NewSheet("a")
+	// excel.SetSheetRow("Sheet1", "a1", &[]interface{}{"1", "a", 2})
+	// excel.SetSheetRow("a", "a2", &[]interface{}{"2", "b", 3})
+	// excel.SaveAs("/Users/max/Projects/test.xlsx")
+	writeExecel("/Users/jimmy/Projects/资源不合理.xlsx", func(excel *excelize.File) {
+		excel.SetSheetRow("Sheet1", "a1", &[]interface{}{"团队", "项目", "应用", "环境", "内存", "建议内存", "代码库地址"})
+		var row = 2
+		rowstr := "a2"
+		for _, v := range kvs {
+			json.Unmarshal(v.Value, &archconf)
+			if archconf.Application.Type == "h5" || archconf.Application.Type == "apollofront" {
+				for env, memsuggi := range envarr {
+					realmem, _ := strconv.Atoi(strings.TrimSuffix(archconf.Environment.Strategy[env].Mem, "Mi"))
+					suggimem, _ := strconv.Atoi(strings.TrimSuffix(memsuggi, "Mi"))
+					if realmem > suggimem {
+						rowstr = "a" + strconv.Itoa(row)
+						row++
+
+						excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+							teammap[archconf.Application.Team],
+							archconf.Application.Project,
+							archconf.Application.Name,
+							env,
+							archconf.Environment.Strategy[env].Mem,
+							memsuggi,
+							archconf.Application.Repositry})
+						// 	  "建议内存", "代码库地址"})
+						// msg := teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + env + "," + archconf.Environment.Strategy[env].Mem + "," + memsuggi + "," + archconf.Application.Repositry
+						// buff.WriteString(msg + "\n")
+					}
+				}
+			}
+		}
+	})
+
+	// f("/Users/max/Projects/资源不合理.csv", func(buff *bufio.Writer) {
+	// 	buff.WriteString("团队,项目,应用,环境,内存,建议内存,代码库地址\n")
+
+	// 	for _, v := range kvs {
+	// 		json.Unmarshal(v.Value, &archconf)
+	// 		if archconf.Application.Type == "h5" || archconf.Application.Type == "apollofront" {
+	// 			for env, memsuggi := range envarr {
+	// 				realmem, _ := strconv.Atoi(strings.TrimSuffix(archconf.Environment.Strategy[env].Mem, "Mi"))
+	// 				suggimem, _ := strconv.Atoi(strings.TrimSuffix(memsuggi, "Mi"))
+	// 				if realmem > suggimem {
+	// 					msg := teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + env + "," + archconf.Environment.Strategy[env].Mem + "," + memsuggi + "," + archconf.Application.Repositry
+	// 					buff.WriteString(msg + "\n")
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// })
+
+	writeExecel("/Users/jimmy/Projects/对外暴露不合规.xlsx", func(excel *excelize.File) {
+		excel.SetSheetRow("Sheet1", "a1", &[]interface{}{"团队", "项目", "应用", "expovice", "违规形式", "应用类型", "代码库地址"})
+		var row = 2
+		rowstr := "a2"
+		for _, v := range kvs {
+			json.Unmarshal(v.Value, &archconf)
+			if archconf.Environment.Expose.Internet.Visible == false && archconf.Environment.Expose.Intranet.Visible == false && archconf.Environment.Expose.Expovice != "" {
+				rowstr = "a" + strconv.Itoa(row)
+				row++
+				excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+					teammap[archconf.Application.Team],
+					archconf.Application.Project,
+					archconf.Application.Name,
+					archconf.Environment.Expose.Expovice,
+					"none area",
+					archconf.Application.Type,
+					archconf.Application.Repositry})
+				// buff.WriteString(teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + archconf.Environment.Expose.Expovice + "," + "none area" + "," + archconf.Application.Type + "," + archconf.Application.Repositry + "\n")
+			}
+			if archconf.Environment.Expose.Expovice != "" &&
+				archconf.Application.Type != "h5" &&
+				archconf.Application.Type != "fls-aflm-orderservice-web" &&
+				archconf.Application.Type != "apollofront" {
+
+				if !strings.Contains(archconf.Environment.Expose.Expovice, "security-gateway") {
+					rowstr = "a" + strconv.Itoa(row)
+					row++
+					excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+						teammap[archconf.Application.Team],
+						archconf.Application.Project,
+						archconf.Application.Name,
+						archconf.Environment.Expose.Expovice,
+						"app exposed",
+						archconf.Application.Type,
+						archconf.Application.Repositry})
+					// buff.WriteString(teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + archconf.Environment.Expose.Expovice + "," + "app exposed" + "," + archconf.Application.Type + "," + archconf.Application.Repositry + "\n")
+				} else if strings.Contains(archconf.Application.Name, "security-gateway") {
+					rowstr = "a" + strconv.Itoa(row)
+					row++
+					excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+						teammap[archconf.Application.Team],
+						archconf.Application.Project,
+						archconf.Application.Name,
+						archconf.Environment.Expose.Expovice,
+						"secgw exposed",
+						archconf.Application.Type,
+						archconf.Application.Repositry})
+					// buff.WriteString(teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + archconf.Environment.Expose.Expovice + "," + "sec exposed" + "," + archconf.Application.Type + "," + archconf.Application.Repositry + "\n")
+				} else {
+					rowstr = "a" + strconv.Itoa(row)
+					row++
+					excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+						teammap[archconf.Application.Team],
+						archconf.Application.Project,
+						archconf.Application.Name,
+						archconf.Environment.Expose.Expovice,
+						"securited",
+						archconf.Application.Type,
+						archconf.Application.Repositry})
+					// buff.WriteString(teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + archconf.Environment.Expose.Expovice + "," + "securited" + "," + archconf.Application.Type + "," + archconf.Application.Repositry + "\n")
+				}
+			}
+		}
+	})
+
+	writeExecel("/Users/jimmy/Projects/服务依赖完成情况.xlsx", func(excel *excelize.File) {
+		excel.SetSheetRow("Sheet1", "a1", &[]interface{}{"团队", "项目", "应用", "违规形式", "应用类型", "代码库地址"})
+		var row = 2
+		rowstr := "a2"
+		for _, v := range kvs {
+
+			json.Unmarshal(v.Value, &archconf)
+			if archconf.Application.Service == nil {
+				rowstr = "a" + strconv.Itoa(row)
+				row++
+				excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+					teammap[archconf.Application.Team],
+					archconf.Application.Project,
+					archconf.Application.Name,
+					"unfinished",
+					archconf.Application.Type,
+					archconf.Application.Repositry})
+				// buff.WriteString(teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + "unfinished" + "," + archconf.Application.Type + "," + archconf.Application.Repositry + "\n")
+			} else if len(archconf.Application.Service) == 0 {
+				rowstr = "a" + strconv.Itoa(row)
+				row++
+				excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+					teammap[archconf.Application.Team],
+					archconf.Application.Project,
+					archconf.Application.Name,
+					"empty",
+					archconf.Application.Type,
+					archconf.Application.Repositry})
+				// buff.WriteString(teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + "empty" + "," + archconf.Application.Type + "," + archconf.Application.Repositry + "\n")
+			} else {
+				rowstr = "a" + strconv.Itoa(row)
+				row++
+				excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+					teammap[archconf.Application.Team],
+					archconf.Application.Project,
+					archconf.Application.Name,
+					"finished",
+					archconf.Application.Type,
+					archconf.Application.Repositry})
+				// buff.WriteString(teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + "finished" + "," + archconf.Application.Type + "," + archconf.Application.Repositry + "\n")
+			}
+		}
+	})
+	writeExecel("/Users/jimmy/Projects/应用信息.xlsx", func(excel *excelize.File) {
+		excel.SetSheetRow("Sheet1", "a1", &[]interface{}{"systemName", "moduleName", "gitUrl", "codeLanguage", "repositoryType", "scanCodePath"})
+		var row = 2
+		rowstr := "a2"
+		for _, v := range kvs {
+
+			json.Unmarshal(v.Value, &archconf)
+			if archconf.Application.Type != "go" && archconf.Application.Type != "python" {
+				apptype := archconf.Application.Type
+				switch apptype {
+				case "apollofront":
+					apptype = "h5"
+				case "apollobackend":
+					apptype = "java"
+				case "tomcat-common":
+					apptype = "java"
+				case "tomcat":
+					apptype = "java"
+				case "tomcat-job":
+					apptype = "java"
+				case "tomcat-wx-admin":
+					apptype = "java"
+				case "java-heracles":
+					apptype = "java"
+				case "nodejs":
+					apptype = "h5"
+				}
+				rowstr = "a" + strconv.Itoa(row)
+				row++
+				excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+					archconf.Application.Appid,
+					archconf.Application.Name,
+					archconf.Application.Repositry,
+					apptype,
+					"GIT",
+					"/"})
+			}
+		}
+	})
+
+	writeExecel("/Users/jimmy/Projects/应用资源.xlsx", func(excel *excelize.File) {
+		excel.SetSheetRow("Sheet1", "a1", &[]interface{}{"团队", "项目", "应用", "环境", "内存", "cpu核心数(弹性)", "代码库地址"})
+		var row = 2
+		rowstr := "a2"
+		for _, v := range kvs {
+			json.Unmarshal(v.Value, &archconf)
+			// if archconf.Application.Type == "h5" || archconf.Application.Type == "apollofront" {
+			for env := range envarr {
+				// realmem, _ := strconv.Atoi(strings.TrimSuffix(archconf.Environment.Strategy[env].Mem, "Mi"))
+				// suggimem, _ := strconv.Atoi(strings.TrimSuffix(memsuggi, "Mi"))
+				// if realmem > suggimem {
+				rowstr = "a" + strconv.Itoa(row)
+				row++
+
+				excel.SetSheetRow("Sheet1", rowstr, &[]interface{}{
+					teammap[archconf.Application.Team],
+					archconf.Application.Project,
+					archconf.Application.Name,
+					env,
+					archconf.Environment.Strategy[env].Mem,
+					archconf.Environment.Strategy[env].Cpu,
+					archconf.Application.Repositry})
+				// 	  "建议内存", "代码库地址"})
+				// msg := teammap[archconf.Application.Team] + "," + archconf.Application.Project + "," + archconf.Application.Name + "," + env + "," + archconf.Environment.Strategy[env].Mem + "," + memsuggi + "," + archconf.Application.Repositry
+				// buff.WriteString(msg + "\n")
+				// }
+			}
+			// }
+		}
+	})
+
+	// log.Print(kvs)
+}
+
+func Test_fasfds(t *testing.T) {
+	mm := make(map[string][]string)
+
+	nn := make(map[string][]string)
+	nn["dsf"] = append(nn["dsf"], mm["sdf"]...)
+	log.Print(nn)
+
 }
 
 func TestMain(m *testing.M) {

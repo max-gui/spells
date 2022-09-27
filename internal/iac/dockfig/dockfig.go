@@ -26,8 +26,11 @@ func GenDocfile(appconf archfig.Arch_config, c context.Context) string {
 	// a := Arch_config{}
 	// yaml.Unmarshal(str, &a)
 	// t.Log(a)
-	name := "Dockerfile." + appconf.Application.Type
-	result := templ.GemplFrom(name, appconf, c)
+	// name := "Dockerfile." + appconf.Application.Type
+	// result := templ.GemplFrom(name, appconf, c)
+
+	name := "Dockerfile"
+	result := templ.GemplFromType(name, appconf.Application.Type, appconf, c)
 
 	return result
 }

@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
-	"strings"
+
 	"sync"
 	"time"
 
@@ -23,24 +23,96 @@ import (
 	"github.com/max-gui/spells/internal/pkg/jenkinsops"
 )
 
-type dcenvdeploy func(archfig.Arch_config, string, string, string, string, context.Context) [][]map[string]string
+type dcenvdeploy func(archfig.Arch_config, string, string, string, string, bool, context.Context) [][]map[string]string
+type opsmethod func(map[string]string, bool, bool, context.Context) deployresult
 
-func FlashNdeploy4Strtegy(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
-	return FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4strategy, c)
+// func FlashNdeploy4Strtegy(branch, env, dc, appname, team, proj, region string, c context.Context, genconf bool) []deployresult {
+// 	return FlashNOps(branch, env, dc, appname, team, proj, region, deploy4strategy, genconf, c)
+// }
+
+//	func FlashNdeploy4Target(branch, env, dc, appname, team, proj, region string, c context.Context, genconf bool) []deployresult {
+//		return FlashNOps(branch, env, dc, appname, team, proj, region, deploy4target, genconf, c)
+//	}
+func StrtegyFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
+	return FlashNOps(branch, env, dc, appname, team, proj, region, true, deploy4strategy, deploySingle, true, c)
 }
 
-func FlashNdeploy4Target(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
-	return FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target, c)
+func TargetFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
+	return FlashNOps(branch, env, dc, appname, team, proj, region, true, deploy4target, deploySingle, true, c)
 }
 
-func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhelp dcenvdeploy, c context.Context) []deployresult {
+func StrtegyFlashRelease(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
+	return FlashNOps(branch, env, dc, appname, team, proj, region, false, deploy4strategy, releaseSingle, false, c)
+}
 
-	log := logagent.Inst(c)
+func TargetFlashRelease(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
+	return FlashNOps(branch, env, dc, appname, team, proj, region, false, deploy4target, releaseSingle, false, c)
+}
+
+func FlashNOps(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, genconf bool, c context.Context) []deployresult {
+
+	log := logagent.InstArch(c)
 
 	if iac.IsBranchNameIllegal(branch, env) {
 		log.Panic("branch name is ilegal")
 	}
+	var (
+		isupdate bool
+		appconf  archfig.Arch_config
+	)
+	if updateRepo {
+		// appconf := archfig.GetAppconfig(appname, team, proj)
+		gitres := githelp.UpdateAll(c)
+		iacr := gitres[constset.Iacname].Repo
+		// _, err := githelp.CloneGetrepo(*constset.Archurl, constset.Archpath)
+		// if err != nil && err != git.NoErrAlreadyUpToDate {
+		// 	log.Panic(err)
+		// }
+		// _, err = githelp.CloneGetrepo(*constset.Templurl, constset.Templepath)
+		// if err != nil && err != git.NoErrAlreadyUpToDate {
+		// 	log.Panic(err)
+		// }
+		// iacr, err := githelp.CloneGetrepo(*constset.IacUrl, constset.Iacpath)
+		// if err != nil && err != git.NoErrAlreadyUpToDate {
+		// 	log.Panic(err)
+		// }
 
+		// var isupdate = false
+		// var regenflag = false
+		// if archerr != git.NoErrAlreadyUpToDate || templerr != git.NoErrAlreadyUpToDate {
+		// for _, v := range gitres {
+		// 	if v.Isupdate {
+		// 		regenflag = true
+		// 		break
+		// 	}
+		// }
+		iac.Clearcachelocal()
+
+		appconf = archfig.GetAppconfigFull(appname, true, c)
+
+		filesinfo, _ := altconfig.ArchAltGenWithChanges(appconf, true, false, c)
+		appconf.Install(c)
+		isupdate = githelp.CommitPushFiles(filesinfo, iacr, constset.Iacpath, c)
+		// }
+	} else {
+		appconf = archfig.GetAppconfigFull(appname, true, c)
+		isupdate = false
+	}
+
+	deploymap := deployhelp(appconf, env, dc, region, branch, genconf, c)
+	// var deploymap []map[string]string
+
+	resurl := opsMultiply(deploymap, isupdate, opsingl, c)
+	return resurl
+}
+
+func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhelp dcenvdeploy, c context.Context) []deployresult {
+
+	log := logagent.InstArch(c)
+
+	if iac.IsBranchNameIllegal(branch, env) {
+		log.Panic("branch name is ilegal")
+	}
 	// appconf := archfig.GetAppconfig(appname, team, proj)
 	gitres := githelp.UpdateAll(c)
 	iacr := gitres[constset.Iacname].Repo
@@ -60,30 +132,86 @@ func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhel
 	// var isupdate = false
 	// var regenflag = false
 	// if archerr != git.NoErrAlreadyUpToDate || templerr != git.NoErrAlreadyUpToDate {
-	// for _, v := range gitres {
-	// 	if v.Isupdate {
-	// 		regenflag = true
-	// 		break
-	// 	}
-	// }
+	//
+	//	for _, v := range gitres {
+	//		if v.Isupdate {
+	//			regenflag = true
+	//			break
+	//		}
+	//	}
 	iac.Clearcachelocal()
-
 	appconf := archfig.GetAppconfigFull(appname, true, c)
 
 	filesinfo, _ := altconfig.ArchAltGenWithChanges(appconf, true, false, c)
 	appconf.Install(c)
 	isupdate := githelp.CommitPushFiles(filesinfo, iacr, constset.Iacpath, c)
-	// }
 
-	deploymap := deployhelp(appconf, env, dc, region, branch, c)
+	deploymap := deployhelp(appconf, env, dc, region, branch, true, c)
 	// var deploymap []map[string]string
 
-	resurl := deploy(deploymap, isupdate, c)
+	resurl := opsMultiply(deploymap, isupdate, deploySingle, c)
+	return resurl
+}
+
+func FlashNrelease(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, c context.Context) []deployresult {
+
+	log := logagent.InstArch(c)
+
+	if iac.IsBranchNameIllegal(branch, env) {
+		log.Panic("branch name is ilegal")
+	}
+	var (
+		isupdate bool
+		appconf  archfig.Arch_config
+	)
+	if updateRepo {
+		// appconf := archfig.GetAppconfig(appname, team, proj)
+		gitres := githelp.UpdateAll(c)
+		iacr := gitres[constset.Iacname].Repo
+		// _, err := githelp.CloneGetrepo(*constset.Archurl, constset.Archpath)
+		// if err != nil && err != git.NoErrAlreadyUpToDate {
+		// 	log.Panic(err)
+		// }
+		// _, err = githelp.CloneGetrepo(*constset.Templurl, constset.Templepath)
+		// if err != nil && err != git.NoErrAlreadyUpToDate {
+		// 	log.Panic(err)
+		// }
+		// iacr, err := githelp.CloneGetrepo(*constset.IacUrl, constset.Iacpath)
+		// if err != nil && err != git.NoErrAlreadyUpToDate {
+		// 	log.Panic(err)
+		// }
+
+		// var isupdate = false
+		// var regenflag = false
+		// if archerr != git.NoErrAlreadyUpToDate || templerr != git.NoErrAlreadyUpToDate {
+		// for _, v := range gitres {
+		// 	if v.Isupdate {
+		// 		regenflag = true
+		// 		break
+		// 	}
+		// }
+		iac.Clearcachelocal()
+
+		appconf = archfig.GetAppconfigFull(appname, true, c)
+
+		filesinfo, _ := altconfig.ArchAltGenWithChanges(appconf, true, false, c)
+		appconf.Install(c)
+		isupdate = githelp.CommitPushFiles(filesinfo, iacr, constset.Iacpath, c)
+		// }
+	} else {
+		appconf = archfig.GetAppconfigFull(appname, true, c)
+		isupdate = false
+	}
+
+	deploymap := deployhelp(appconf, env, dc, region, branch, false, c)
+	// var deploymap []map[string]string
+
+	resurl := opsMultiply(deploymap, isupdate, opsingl, c)
 	return resurl
 }
 
 func deploy4target(appconf archfig.Arch_config,
-	env, dc, region, branch string, c context.Context) [][]map[string]string {
+	env, dc, region, branch string, genconf bool, c context.Context) [][]map[string]string {
 	// valstring, dockerstring := getvalues(appconf, BuildEnv, prfileActive)
 	// deploymap = append(deploymap, map[string]string{
 	// 	"BuildEnv":         BuildEnv,
@@ -108,7 +236,7 @@ func deploy4target(appconf archfig.Arch_config,
 		archfig.EnvInfo{
 			Env: env,
 			Dc:  dc,
-		}, region, branch, c)
+		}, region, branch, genconf, c)
 	// realseName, depmap = fn2(appconf, BuildEnv, envstr, realseName, region, branch)
 	// depmap["BuildEnv"] = env
 	// depmap["prfileActive"] = envdc
@@ -118,8 +246,8 @@ func deploy4target(appconf archfig.Arch_config,
 	return deploymapseq
 }
 
-//  deployhelp(appconf, env, dc, region, branch)
-func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region string, branch string, c context.Context) [][]map[string]string {
+// deployhelp(appconf, env, dc, region, branch)
+func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region string, branch string, genconf bool, c context.Context) [][]map[string]string {
 	deploymapseq := [][]map[string]string{}
 	for _, v := range appconf.Deploy.Stratail[env] {
 		deploymaps := []map[string]string{}
@@ -133,7 +261,7 @@ func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region 
 			if envinfo.Env != "prod" && region == "rc" {
 				continue
 			}
-			depmap := genjenkloymap(appconf, envinfo, region, branch, c)
+			depmap := genjenkloymap(appconf, envinfo, region, branch, genconf, c)
 			// depmap["BuildEnv"] = envinfo.Env
 			// depmap["prfileActive"] = envdc
 			// depmap["dc"] = envinfo.Dc
@@ -200,10 +328,9 @@ type ConfsolverIac struct {
 }
 
 func genjenkloymap(appconf archfig.Arch_config,
-	envinfo archfig.EnvInfo, region, branch string, c context.Context) map[string]string {
+	envinfo archfig.EnvInfo, region, branch string, genconf bool, c context.Context) map[string]string {
 	// envstr := envinfo.Env + "-" + envinfo.Dc
 
-	log := logagent.Inst(c)
 	envstr := getenvstr(envinfo)
 
 	// var realseName string
@@ -211,17 +338,45 @@ func genjenkloymap(appconf archfig.Arch_config,
 	// 	realseName = appconf.Application.Name + ""
 	// } else {
 	// 	realseName = appconf.Application.Name + "-v" + region
-	// }
-	realseName := appconf.Application.Name + "-" + envinfo.Env + "-" + region
+
+	if genconf {
+		genConfAppend(appconf, envstr, c)
+	}
+	//curl http://arch-spells/generateConfig/iac/
+	// apolloEnv
+	// apolloCluster
+	// "apolloEnv":     apolloEnv,
+	// "apolloCluster": apolloCluster,
+	return genjenkinsmap(appconf, envinfo, envstr, region, branch, c)
+}
+
+func genjenkinsmap(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envstr string, region string, branch string, c context.Context) map[string]string {
+
 	var valstring, dockerstring string
 
-	genConfAppend(appconf, envstr, c)
+	log := logagent.InstArch(c)
 
-	//curl http://arch-spells/generateConfig/iac/
+	// }
+	realseName := appconf.Application.Name + "-" + envinfo.Env + "-" + region
+
 	if !appconf.Application.Ungenfig {
-		// apolloEnv
-		// apolloCluster
+
 		valstring, dockerstring = getDeployconf(appconf, envinfo, envstr, c)
+		// tags := map[string]interface{}{}
+		// err := yaml.Unmarshal([]byte(valstring), tags)
+		// if err != nil {
+		// 	log.Panic(err)
+		// }
+
+		// rediscli := redisops.Pool().Get()
+
+		// defer rediscli.Close()
+		// jsonbs, _ := json.Marshal(tags["podtags"])
+
+		// _, err = rediscli.Do("SETEX", "spells-"+realseName+"-tags", 600, jsonbs)
+		// if err != nil {
+		// 	log.Panic(err)
+		// }
 	}
 	log.Print(valstring)
 	bytes, _ := json.MarshalIndent(appconf, "", "    ")
@@ -237,6 +392,7 @@ func genjenkloymap(appconf archfig.Arch_config,
 		"Dockerstring": dockerstring,
 		"Description":  appconf.Application.Description,
 		"Appname":      appconf.Application.Name,
+		"Langval":      appconf.Application.Langval,
 
 		"Appid": appconf.Application.Appid,
 
@@ -246,16 +402,13 @@ func genjenkloymap(appconf archfig.Arch_config,
 		"iacenv":       *logsets.Appenv,
 		"isupdate":     "false",
 		"archfig":      string(bytes),
-
-		// "apolloEnv":     apolloEnv,
-		// "apolloCluster": apolloCluster,
 	}
 
 	return depmap
 }
 
 func genConfAppend(appconf archfig.Arch_config, envstr string, c context.Context) {
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
@@ -271,7 +424,7 @@ func genConfAppend(appconf archfig.Arch_config, envstr string, c context.Context
 	if err != nil {
 		log.Panic(err)
 	}
-	resbody, err := ioutil.ReadAll(response.Body)
+	resbody, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -290,7 +443,7 @@ func genConfAppend(appconf archfig.Arch_config, envstr string, c context.Context
 
 func getenvstr(envinfo archfig.EnvInfo) string {
 	envstr := envinfo.Env + envinfo.Dc
-	envstr = strings.TrimSuffix(envstr, "LFB")
+	// envstr = strings.TrimSuffix(envstr, "LFB")
 	return envstr
 }
 
@@ -379,9 +532,65 @@ type deployresult struct {
 // 	wg.Done()
 // }
 
+func releaseSingle(releaseinfo map[string]string, isupdate, flag bool, c context.Context) deployresult {
+	// var resurl deployresult
+	log := logagent.InstArch(c)
+
+	depres := deployresult{Dcenv: releaseinfo["BuildEnv"], Dc: releaseinfo["dc"]}
+
+	ctx := context.Background()
+	// restmp := deployresult{status: false, msg: fmt.Sprintf("%v", e)}
+	jenkins, jurl, _ := jenkinsops.GetJenkins(releaseinfo["prfileActive"], c)
+
+	job, err := jenkins.GetJob(ctx, "devops-deleteEnv")
+	// bytes, err := json.MarshalIndent(job.Raw.Scm, "", "    ")
+	// str, err := job.GetConfig(ctx)
+	// if err != nil {
+	// 	log.Print(err)
+	// }
+
+	// log.Print(str)
+	// log.Print(string(bytes))
+
+	// jenkins.Requester.GetXML()
+
+	if err != nil {
+		log.Panic("devops-deleteEnv doesnt exist")
+	}
+	log.Print(job)
+
+	queid, err := job.InvokeSimple(ctx, releaseinfo)
+	if err != nil {
+
+		log.Print(err)
+
+		depres.Status = false
+		depres.Msg = fmt.Sprintf("%v", err)
+
+		return depres
+	}
+
+	build, err := job.Jenkins.GetBuildFromQueueID(ctx, queid) //job.GetLastBuild(ctx) //
+	if err != nil {
+		log.Print(err)
+
+		depres.Status = false
+		depres.Msg = fmt.Sprintf("%v", err)
+
+		return depres
+	}
+	buildno := build.GetBuildNumber()
+	depres.Status = true
+	depres.Resulturl = jurl + "job/devops-deleteEnv/" + fmt.Sprint(buildno) + "/console"
+	depres.JobName = "devops-deleteEnv"
+	depres.TaskIndex = buildno
+
+	return depres
+}
+
 func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.Context) deployresult {
 	// var resurl deployresult
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	depres := deployresult{Dcenv: deployinfo["BuildEnv"], Dc: deployinfo["dc"]}
 	if !flag {
@@ -393,7 +602,7 @@ func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.C
 
 	ctx := context.Background()
 	// restmp := deployresult{status: false, msg: fmt.Sprintf("%v", e)}
-	jenkins, jurl, _ := jenkinsops.GetJenkins(deployinfo["BuildEnv"], c)
+	jenkins, jurl, _ := jenkinsops.GetJenkins(deployinfo["prfileActive"], c)
 
 	job, err := jenkins.GetJob(ctx, "iac-"+deployinfo["Appname"])
 	// bytes, err := json.MarshalIndent(job.Raw.Scm, "", "    ")
@@ -404,6 +613,9 @@ func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.C
 
 	// log.Print(str)
 	// log.Print(string(bytes))
+
+	// jenkins.Requester.GetXML()
+
 	if err != nil {
 		log.Print(err)
 		job, err = jenkins.CreateJob(ctx, jenkinsops.GetJobXML(deployinfo["Description"], deployinfo["Appname"], deployinfo["Appid"]), "iac-"+deployinfo["Appname"])
@@ -419,7 +631,8 @@ func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.C
 	}
 	log.Print(job)
 
-	if isupdate {
+	jenkinsUpdated := !jenkinsops.IsSameJob(jenkins, deployinfo["Appname"], deployinfo["Appid"], ctx)
+	if jenkinsUpdated {
 		deployinfo["isupdate"] = "true"
 		err = job.UpdateConfig(ctx, jenkinsops.GetJobXML(deployinfo["Description"], deployinfo["Appname"], deployinfo["Appid"]))
 		if err != nil {
@@ -460,10 +673,59 @@ func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.C
 	return depres
 }
 
-func deploy(deployinfoseq [][]map[string]string, isupdate bool, c context.Context) []deployresult {
+// func deploy(deployinfoseq [][]map[string]string, isupdate bool, c context.Context) []deployresult {
+// 	var resurl []deployresult
+
+// 	log := logagent.Inst(c)
+
+// 	flag := true
+// 	for _, deployinfos := range deployinfoseq {
+// 		var wg sync.WaitGroup
+// 		ch := make(chan deployresult, len(deployinfos))
+// 		for _, deployinfo := range deployinfos {
+// 			// resurl = append(resurl, ) deploySingle(deployinfo, isupdate, flag)
+
+// 			wg.Add(1)
+// 			go func(depinfo map[string]string) {
+// 				defer func() {
+// 					if e := recover(); e != nil {
+
+// 						ch <- deployresult{Dcenv: depinfo["BuildEnv"], Dc: depinfo["dc"], Status: false, Msg: fmt.Sprint(e)}
+// 						wg.Done()
+// 					}
+// 				}()
+// 				// deploySingle(deployinfo, isupdate, flag, c, &wg)
+
+// 				ch <- deploySingle(depinfo, isupdate, flag, c)
+// 				wg.Done()
+// 			}(deployinfo)
+// 		}
+// 		wg.Wait()
+// 		close(ch)
+// 		for v := range ch {
+// 			resurl = append(resurl, v)
+// 			flag = v.Status
+// 		}
+// 	}
+// 	log.Print(resurl)
+// 	// STATUS_FAIL           = "FAIL"
+// 	// STATUS_ERROR          = "ERROR"
+// 	// STATUS_ABORTED        = "ABORTED"
+// 	// STATUS_REGRESSION     = "REGRESSION"
+// 	// STATUS_SUCCESS        = "SUCCESS"
+// 	// STATUS_FIXED          = "FIXED"
+// 	// STATUS_PASSED         = "PASSED"
+// 	// RESULT_STATUS_FAILURE = "FAILURE"
+// 	// RESULT_STATUS_FAILED  = "FAILED"
+// 	// RESULT_STATUS_SKIPPED = "SKIPPED"
+
+// 	return resurl
+// }
+
+func opsMultiply(deployinfoseq [][]map[string]string, isupdate bool, opsingle opsmethod, c context.Context) []deployresult {
 	var resurl []deployresult
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	flag := true
 	for _, deployinfos := range deployinfoseq {
@@ -483,7 +745,7 @@ func deploy(deployinfoseq [][]map[string]string, isupdate bool, c context.Contex
 				}()
 				// deploySingle(deployinfo, isupdate, flag, c, &wg)
 
-				ch <- deploySingle(depinfo, isupdate, flag, c)
+				ch <- opsingle(depinfo, isupdate, flag, c)
 				wg.Done()
 			}(deployinfo)
 		}
@@ -511,7 +773,9 @@ func deploy(deployinfoseq [][]map[string]string, isupdate bool, c context.Contex
 
 func getDeployconf(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envdc string, c context.Context) (string, string) {
 	valconfig := valfig.GenValfig(appconf, envinfo, envdc, c)
+
 	valfile := valfig.GenValfile(valconfig, c)
+
 	// dockerfile := dockfig.GenRuntimeDocfile(appconf, valconfig)
 	dockerfile := dockfig.GenDocfile(appconf, c)
 
@@ -682,12 +946,13 @@ func Checkresults(checkinfos []DeploycheckInfo, jobname string, c context.Contex
 // 	c <- res
 // 	wg.Done()
 
-// 	return res
-// }
+//		return res
+//	}
+//
 // jobname string, envinfo archfig.EnvInfo, taskindex int64
 func Checkresult(checkinfo DeploycheckInfo, jobname string, c context.Context) checkResult {
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 
 	envinfo := archfig.EnvInfo{Dc: checkinfo.Dc, Env: checkinfo.Env}
 	envstr := getenvstr(envinfo)

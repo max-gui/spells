@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/max-gui/logagent/pkg/logagent"
+	"github.com/max-gui/logagent/pkg/logsets"
 	"github.com/max-gui/logagent/pkg/routerutil"
 	"github.com/max-gui/spells/internal/githelp"
 	"github.com/max-gui/spells/internal/iac"
@@ -25,6 +26,9 @@ import (
 func SetupRouter() *gin.Engine {
 	// gin.New()
 	// r := gin.Default()
+	if *logsets.Appenv == "prod" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	r := gin.New()                      //.Default()
 	r.Use(routerutil.GinHeaderMiddle()) // ginHeaderMiddle())
 	r.Use(routerutil.GinLogger())       //LoggerWithConfig())
@@ -39,6 +43,7 @@ func SetupRouter() *gin.Engine {
 	{
 		v1.Use(ginCommitMiddle())
 		v1.POST("/check", Commit_hook)
+		v1.POST("/clear/check", clear_hook)
 		v1.POST("/separate/commit/check", separate_commit_hook)
 	}
 	// r.POST("/hook/archDef/commit", archDefCommit)
@@ -50,6 +55,12 @@ func SetupRouter() *gin.Engine {
 		v2.POST("/direct/:appname/:appid/:dcenv/:dc/:region/:branch/:team/:proj", targetDeploy)
 		v2.POST("/result/task/:env/:dc/:jobname/:taskindex", deployCheck)
 		v2.POST("/result/tasks/:jobname", deployChecks)
+	}
+	v5 := r.Group("/apply/resource")
+	{
+		// v5.POST("/free/:relasename", applyResFree)
+		v5.POST("/free/strategy/:appname/:appid/:env/:region/:team/:proj", applyResFree)
+		v5.POST("/free/direct/:appname/:appid/:dcenv/:dc/:region/:team/:proj", targetResFree)
 	}
 	v3 := r.Group("/info")
 	{
@@ -68,30 +79,12 @@ func SetupRouter() *gin.Engine {
 	// r.POST("/apply/deploy/direct/:appname/:appid/:dcenv/:dc/:region/:branch/:team/:proj", targetDeploy)
 	// r.POST("/deploy/result/:jobname/:taskindex", deployCheck)
 	r.POST("/apply/clear/cache", clearcache)
+	r.POST("/arch/install", arch_install)
 	// r.GET("/projinfo/:team", getteamproj)
 	// r.GET("/appinfo/:proj/:team/:app", getteamprojapp)
 	r.GET("/actuator/health", health)
 	r.POST("/hook/mr", MrHook)
 	return r
-}
-
-func ginErrorMiddle() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		defer func() {
-			if e := recover(); e != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"msg": fmt.Sprint(e),
-				})
-				panic(e)
-			}
-		}()
-
-		c.Next()
-		// host := c.Request.Host
-		// fmt.Printf("Before: %s\n", host)
-		// c.Next()
-		// fmt.Println("Next: ...")
-	}
 }
 
 func ginCommitMiddle() gin.HandlerFunc {
@@ -120,8 +113,12 @@ func health(c *gin.Context) {
 }
 
 func clearcache(c *gin.Context) {
-	iac.Clearcachelocal()
-	c.JSON(http.StatusOK, nil)
+	iac.ClearcacheAll(c)
+
+	c.JSON(http.StatusOK, gin.H{
+		"ret": 0,
+	})
+	// c.JSON(http.StatusOK, nil)
 }
 
 func deployChecks(c *gin.Context) {
@@ -141,7 +138,11 @@ func deployChecks(c *gin.Context) {
 	// for _, val := range taskindex {
 	// 	checkinfos = append(checkinfos, deploy.DeploycheckInfo{Dc: "LFB", Env: "test", Taskindex: val})
 	// }
-	log := logagent.Inst(c)
+
+	log := logagent.InstArch(c).WithField("ops-method", "deployChecks").WithField("check-jobname", jobname)
+	// deploymap = fn0(appconf, env, region, branch, appname)
+	log.Print("start")
+
 	log.Println(checkinfos)
 	results := deploy.Checkresults(checkinfos, jobname, c)
 
@@ -165,7 +166,10 @@ func deployCheck(c *gin.Context) {
 	dc := c.Param("dc")
 	// envinfo := archfig.EnvInfo{Env: env, Dc: dc}
 	// appid := c.Param("appid")
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c).WithField("ops-method", "deployCheck").WithField("check-jobname", jobname)
+	// deploymap = fn0(appconf, env, region, branch, appname)
+	log.Print("start")
+
 	taskindex, err := strconv.ParseInt(c.Param("taskindex"), 10, 64)
 	checkinfo := deploy.DeploycheckInfo{Taskindex: taskindex, Dc: dc, Env: env}
 	if err != nil {
@@ -195,10 +199,12 @@ func targetDeploy(c *gin.Context) {
 	proj := c.Param("proj")
 	env := c.Param("dcenv")
 	dc := c.Param("dc")
-	log := logagent.Inst(c)
 
+	log := logagent.InstArch(c).WithField("ops-method", "targetDeploy").WithField("deploy-app", appname).WithField("deploy-branch", branch).WithField("deploy-region", region)
 	// deploymap = fn0(appconf, env, region, branch, appname)
-	resurl := deploy.FlashNdeploy4Target(branch, env, dc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
+	log.Print("start")
+	// resurl := deploy.FlashNdeploy4Target(branch, env, dc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
+	resurl := deploy.TargetFlashDeploy(branch, env, dc, appname, team, proj, region, c)
 
 	log.Print(resurl)
 	c.JSON(http.StatusOK, gin.H{
@@ -240,8 +246,77 @@ func applyDeploy(c *gin.Context) {
 	// 	// "Projname":			proj,
 	// 	deploymap = fn1(appconf, BuildEnv, dc, region, branch, appname)
 	// }
-	log := logagent.Inst(c)
-	resurl := deploy.FlashNdeploy4Strtegy(branch, env, dc, appname, team, proj, region, c) //renew4deploy(branch, env, dc, appname, team, proj, region, deploy4strategy)
+	log := logagent.InstArch(c).WithField("ops-method", "applyDeploy").WithField("deploy-app", appname).WithField("deploy-branch", branch).WithField("deploy-region", region)
+	// deploymap = fn0(appconf, env, region, branch, appname)
+	log.Print("start")
+	// resurl := deploy.FlashNdeploy4Strtegy(branch, env, dc, appname, team, proj, region, c) //renew4deploy(branch, env, dc, appname, team, proj, region, deploy4strategy)
+	resurl := deploy.StrtegyFlashDeploy(branch, env, dc, appname, team, proj, region, c)
+
+	log.Print(resurl)
+	c.JSON(http.StatusOK, gin.H{
+		"result": resurl,
+	})
+}
+
+func applyResFree(c *gin.Context) {
+	// defer func() {
+	// 	if e := recover(); e != nil {
+	// 		c.JSON(http.StatusInternalServerError, gin.H{
+	// 			"msg": fmt.Sprint(e),
+	// 		})
+	// 	}
+	// }()
+
+	appname := c.Param("appname")
+	// appid := c.Param("appid")
+	env := c.Param("env")
+	region := c.Param("region")
+	branch := ""
+	team := c.Param("team")
+	proj := c.Param("proj")
+	dc := ""
+
+	// var flag bool
+	// var deployinfo = []Deployinfo{}
+	// var version string
+	// var realseName string
+	// if BuildEnv == "" && prfileActive == "" && dc == "" {
+	// 	//envinfo.Dc,
+	// 	// "Projname":			proj,
+	// 	deploymap = fn0(appconf, env, region, branch, appname)
+	// } else {
+	// 	if BuildEnv == "" || prfileActive == "" || dc == "" {
+	// 		log.Panic("BuildEnv prfileActive dc should be empty together")
+	// 	}
+	// 	//envinfo.Dc,
+	// 	// "Projname":			proj,
+	// 	deploymap = fn1(appconf, BuildEnv, dc, region, branch, appname)
+	// }
+	log := logagent.InstArch(c).WithField("ops-method", "applyResFree").WithField("release-app", appname).WithField("region", region)
+	// deploymap = fn0(appconf, env, region, branch, appname)
+	log.Print("start")
+	resurl := deploy.StrtegyFlashRelease(branch, env, dc, appname, team, proj, region, c) //renew4deploy(branch, env, dc, appname, team, proj, region, deploy4strategy)
+
+	log.Print(resurl)
+	c.JSON(http.StatusOK, gin.H{
+		"result": resurl,
+	})
+}
+
+func targetResFree(c *gin.Context) {
+	appname := c.Param("appname")
+	// appid := c.Param("appid")
+	region := c.Param("region")
+	branch := ""
+	team := c.Param("team")
+	proj := c.Param("proj")
+	env := c.Param("dcenv")
+	dc := c.Param("dc")
+
+	log := logagent.InstArch(c).WithField("ops-method", "targetResFree").WithField("release-app", appname).WithField("region", region)
+	// deploymap = fn0(appconf, env, region, branch, appname)
+	log.Print("start")
+	resurl := deploy.TargetFlashRelease(branch, env, dc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
 
 	log.Print(resurl)
 	c.JSON(http.StatusOK, gin.H{
@@ -272,7 +347,7 @@ func ArchDef_commit_check(c *gin.Context) {
 	// json := make(map[string]string) //注意该结构接受的内容
 	// mm := make(map[string]interface{})
 	c.BindJSON(&commitcheck)
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	log.Println(commitcheck)
 
 	// f0:=func(filename )
@@ -294,7 +369,7 @@ func Arch_commit_check(c *gin.Context) {
 	commitcheck := altconfig.CommitCheckHookInfo{}
 
 	c.BindJSON(&commitcheck)
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	log.Println(commitcheck)
 	c.JSON(http.StatusOK, gin.H{
 		"ret": 1,
@@ -444,17 +519,21 @@ func getteamproj(c *gin.Context) {
 
 // 	// rediscli.Do("hmset", redis.Args{}.Add("arch-spell-projteam").AddFlat(resmap)...)
 
-// 	return resmap
-// }
-
-func separate_commit_hook(c *gin.Context) {
+//		return resmap
+//	}
+func clear_hook(c *gin.Context) {
 	commitcheck := altconfig.CommitCheckHookInfo{}
 	// json := make(map[string]string) //注意该结构接受的内容
 	// mm := make(map[string]interface{})
 	c.BindJSON(&commitcheck)
 	bs, err := json.Marshal(commitcheck)
+	log := logagent.InstArch(c).WithField("ops-method", "clear_hook")
+	if len(commitcheck.CommitIds) > 0 {
+		log = log.WithField("commitid", commitcheck.CommitIds[0])
+	} else {
+		log = log.WithField("commitid", "0000")
+	}
 
-	log := logagent.Inst(c)
 	if err != nil {
 		log.Print(err)
 	}
@@ -465,44 +544,104 @@ func separate_commit_hook(c *gin.Context) {
 		installflag = true
 	}
 
+	switch commitcheck.RepositoryName {
+	case "af-db":
+		//Sql_commits(commitcheck, c)
+	case "templeinfo":
+		if installflag {
+			iac.ClearcacheAll(c)
+		}
+		//altconfig.Archdef_commit(commitcheck, installflag, c)
+	case "archinfo":
+		// if installflag {
+		//altconfig.Arch_commits(commitcheck, installflag, c)
+		// } else {
+		// 	arch_cc(commitcheck)
+		// }
+	// case "jenkins-library":
+
+	default:
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"ret": 0,
+	})
+}
+
+func separate_commit_hook(c *gin.Context) {
+	commitcheck := altconfig.CommitCheckHookInfo{}
+	// json := make(map[string]string) //注意该结构接受的内容
+	// mm := make(map[string]interface{})
+	c.BindJSON(&commitcheck)
+	bs, err := json.Marshal(commitcheck)
+
+	log := logagent.InstArch(c).WithField("ops-method", "separate_commit_hook")
+	if len(commitcheck.CommitIds) > 0 {
+
+		log = log.WithField("commitid", commitcheck.CommitIds[0])
+		// deploymap = fn0(appconf, env, region, branch, appname)
+		log.Print("start")
+	} else {
+		log = log.WithField("commitid", "0000")
+	}
+
+	if err != nil {
+		log.Print(err)
+	}
+
+	log.Println(string(bs))
+
+	var installflag = false
+	if commitcheck.Branch == "master" {
+		installflag = true
+	}
+
 	var iacfileinfo []githelp.Writeinfo
 	var dbfileinfo []githelp.Writeinfo
-	var archinfos []archfig.Arch_config
+	var altinfos []altconfig.Archalt
 	repourl := fmt.Sprintf(constset.Codeurl+"/%s/%s.git", commitcheck.Namespace, commitcheck.RepositoryName)
 	tmppath := fmt.Sprintf("%s/%s/", commitcheck.Namespace, commitcheck.RepositoryName)
+
 	for _, v := range commitcheck.ChangedFiles {
 		if strings.Contains(v.Path, "arch/") {
 			changes, archalts := altconfig.Arch_commit(v, repourl, installflag, c)
 			iacfileinfo = append(iacfileinfo, changes...)
-			archinfos = append(archinfos, archalts...)
+			altinfos = append(altinfos, archalts...)
 		} else if strings.Contains(v.Path, "sql/") {
 			change := Sql_commit(v, tmppath, installflag, c)
 			dbfileinfo = append(dbfileinfo, change)
 		}
 	}
 
-	for _, val := range archinfos {
-		val.Install(c)
+	if installflag {
+		for _, val := range altinfos {
+			val.Arch_info.Install(c)
+			val.Org_info.OrgInstall(c)
+		}
 	}
 	altconfig.Tmpt(iacfileinfo, constset.IacUrl, *constset.IacBranch, constset.Iacpath, installflag, c)
 	altconfig.Tmpt(dbfileinfo, constset.Dburl, "master", constset.DbPath, installflag, c)
 
-	// switch commitcheck.RepositoryName {
-	// case "af-db":
-	// 	Sql_commits(commitcheck)
-	// case "archinfo":
-	// 	// if installflag {
-	// 	altconfig.Arch_commits(commitcheck, installflag)
-	// 	// } else {
-	// 	// 	arch_cc(commitcheck)
-	// 	// }
-	// // case "jenkins-library":
-
-	// default:
-	// }
 	c.JSON(http.StatusOK, gin.H{
 		"ret": 0,
 	})
+}
+
+func arch_install(c *gin.Context) {
+	archinfo := archfig.Arch_config{}
+	// json := make(map[string]string) //注意该结构接受的内容
+	// mm := make(map[string]interface{})
+	c.BindJSON(&archinfo)
+	bs, err := json.Marshal(archinfo)
+	json.Marshal(archfig.Arch_config{})
+	log := logagent.InstArch(c)
+	if err != nil {
+		log.Print(err)
+	}
+	log.Println(string(bs))
+
+	archinfo.Install(c)
+	c.String(http.StatusOK, "install success")
 }
 
 func Commit_hook(c *gin.Context) {
@@ -520,7 +659,7 @@ func Commit_hook(c *gin.Context) {
 	// mm := make(map[string]interface{})
 	c.BindJSON(&commitcheck)
 	bs, _ := json.Marshal(commitcheck)
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	log.Println(string(bs))
 
 	var installflag = false
@@ -552,7 +691,7 @@ func MrHook(c *gin.Context) {
 }
 
 func Sql_commits(commitinfo altconfig.CommitCheckHookInfo, c context.Context) {
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	for _, c := range commitinfo.ChangedFiles {
 		// for _, a := range c..Added {
 		if strings.Contains(c.Status, "R") {
@@ -571,7 +710,7 @@ func Sql_commits(commitinfo altconfig.CommitCheckHookInfo, c context.Context) {
 func Sql_commit(filecontentinfo archfig.FileContentInfo, repopath string, install bool, c context.Context) githelp.Writeinfo {
 	var fileinfo githelp.Writeinfo
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	if strings.Contains(filecontentinfo.Path, ".sql") {
 		if strings.Contains(filecontentinfo.Status, "R") {
 			log.Panic("delete and add can't be in one commit,please split and push")

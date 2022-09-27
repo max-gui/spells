@@ -48,7 +48,7 @@ type RepoCloneResult struct {
 
 func UpdateAll(c context.Context) map[string]RepoCloneResult {
 	urlPathMap := []map[string]string{}
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	urlPathMap = append(urlPathMap, map[string]string{"name": constset.Archname, "path": constset.Archpath, "url": constset.Archurl, "branch": "master"})
 	urlPathMap = append(urlPathMap, map[string]string{"name": constset.Iacname, "path": constset.Iacpath, "url": constset.IacUrl, "branch": *constset.IacBranch})
 	urlPathMap = append(urlPathMap, map[string]string{"name": constset.Templname, "path": constset.Templepath, "url": constset.Templurl, "branch": "master"})
@@ -172,7 +172,7 @@ func CloneGetrepo(repourl, branch, localpath string, c context.Context) (*git.Re
 	var r *git.Repository
 	var err error
 	var w *git.Worktree
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	if _, err = os.Stat(localpath); os.IsNotExist(err) {
 		// os.MkdirAll(localpath, 0777)
 		// os.MkdirAll(localpath, 0777) //os.ModeDir.Perm())
@@ -214,9 +214,12 @@ func CloneGetrepo(repourl, branch, localpath string, c context.Context) (*git.Re
 			Auth:              publicKey,
 			ReferenceName:     plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", branch)),
 			SingleBranch:      true,
-			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth})
+			RecurseSubmodules: git.NoRecurseSubmodules})
 		if err != nil {
 			log.Print(err)
+			if err != git.NoErrAlreadyUpToDate {
+				w.Reset(&git.ResetOptions{Mode: git.HardReset})
+			}
 		}
 	}
 
@@ -225,7 +228,7 @@ func CloneGetrepo(repourl, branch, localpath string, c context.Context) (*git.Re
 
 func CommitPushFiles(filesinfo []Writeinfo, repo *git.Repository, perfixstr string, c context.Context) bool {
 
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	if len(filesinfo) > 0 {
 		// perfixstr := constset.Iacpath
 		w, err := repo.Worktree()
@@ -259,7 +262,7 @@ func CommitPushFiles(filesinfo []Writeinfo, repo *git.Repository, perfixstr stri
 }
 
 func commitPush(w *git.Worktree, r *git.Repository, c context.Context) bool {
-	log := logagent.Inst(c)
+	log := logagent.InstArch(c)
 	st, err := w.Status()
 	if err != nil {
 		log.Print(err)
