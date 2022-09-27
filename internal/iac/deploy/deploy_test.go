@@ -33,7 +33,7 @@ func setup() {
 	constset.StartupInit(bytes, context.Background())
 
 	*consulsets.Consul_host = ""
-	*consulsets.Acltoken = "" //"245d0a09-7139-config-prod-ff170a0562b1"
+	*consulsets.Acltoken = ""
 	// testpath = makeconfiglist()
 	pthSep = string(os.PathSeparator)
 	orgconfigPth = abstestpath + pthSep + "orgconfig" + pthSep
