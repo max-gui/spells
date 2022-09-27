@@ -32,8 +32,8 @@ func setup() {
 	bytes := confload.Load(context.Background())
 	constset.StartupInit(bytes, context.Background())
 
-	*consulsets.Consul_host = "http://consul-prod.paic.com.cn"
-	*consulsets.Acltoken = "245d0a09-7139-bbea-prod-ff170a0562b1" //"245d0a09-7139-config-prod-ff170a0562b1"
+	*consulsets.Consul_host = ""
+	*consulsets.Acltoken = "" //"245d0a09-7139-config-prod-ff170a0562b1"
 	// testpath = makeconfiglist()
 	pthSep = string(os.PathSeparator)
 	orgconfigPth = abstestpath + pthSep + "orgconfig" + pthSep
