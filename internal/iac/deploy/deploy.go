@@ -246,10 +246,7 @@ func deploy4target(appconf archfig.Arch_config,
 	deploymapseq := [][]map[string]string{}
 	deploymapseq = append(deploymapseq, []map[string]string{depmap})
 
-	envstrlist := []string{depmap["prfileActive"]}
-	if genconf {
-		genConfAppend(appconf, envstrlist, c)
-	}
+	confAppend(genconf, appconf, c)
 
 	return deploymapseq
 }
@@ -257,7 +254,7 @@ func deploy4target(appconf archfig.Arch_config,
 // deployhelp(appconf, env, dc, region, branch)
 func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region string, branch string, genconf bool, c context.Context) [][]map[string]string {
 	deploymapseq := [][]map[string]string{}
-	envstrlist := []string{}
+	// envstrlist := []string{}
 	for _, v := range appconf.Deploy.Stratail[env] {
 		deploymaps := []map[string]string{}
 		for _, envinfo := range v {
@@ -276,7 +273,7 @@ func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region 
 			// depmap["prfileActive"] = envdc
 			// depmap["dc"] = envinfo.Dc
 			deploymaps = append(deploymaps, depmap)
-			envstrlist = append(envstrlist, depmap["prfileActive"])
+			// envstrlist = append(envstrlist, depmap["prfileActive"])
 			// envstrlist = append(envstrlist,depmap["prfileActive"]}
 			// deploymap = append(deploymap, map[string]string{
 			// 	"BuildEnv":         env,
@@ -298,9 +295,7 @@ func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region 
 		deploymapseq = append(deploymapseq, deploymaps)
 	}
 
-	if genconf {
-		genConfAppend(appconf, envstrlist, c)
-	}
+	confAppend(genconf, appconf, c)
 
 	// var realseName string
 	// if envinfo.Env == "prod" || envinfo.Env == "dr" {
@@ -309,6 +304,32 @@ func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region 
 	// 	realseName = appconf.Application.Name + "-v" + region
 
 	return deploymapseq
+}
+
+func confAppend(genconf bool, appconf archfig.Arch_config, c context.Context) {
+	if !genconf {
+		return
+	}
+
+	var genEnvstrlist = func(appconfig archfig.Arch_config) []string {
+		envdcstrmap := map[string]interface{}{}
+		for _, v := range appconfig.Deploy.Stratail {
+			for _, vele := range v {
+				for _, envdcinfo := range vele {
+					envdcstrmap[envdcinfo.Env+envdcinfo.Dc] = struct{}{}
+				}
+			}
+		}
+
+		envstrlist := []string{}
+		for k, _ := range envdcstrmap {
+			envstrlist = append(envstrlist, k)
+		}
+		return envstrlist
+	}
+
+	envstrlist := genEnvstrlist(appconf)
+	genConfAppend(appconf, envstrlist, c)
 }
 
 // func genjenkloymapold(appconf archfig.Arch_config,
