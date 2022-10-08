@@ -54,11 +54,11 @@ func Test_genConfAppend(t *testing.T) {
 	appconf := archfig.Arch_config{}
 	appconf.Application.Name = "arch-spells"
 	appconf.Environment.Tag = make(map[string]string)
-	genConfAppend(appconf, "test", c)
+	genConfAppend(appconf, []string{"test"}, c)
 	log.Print(appconf.Environment.Tag)
-	genConfAppend(appconf, "uat", c)
+	genConfAppend(appconf, []string{"uat"}, c)
 	log.Print(appconf.Environment.Tag)
-	genConfAppend(appconf, "prod", c)
+	genConfAppend(appconf, []string{"prod"}, c)
 	log.Print(appconf.Environment.Tag)
 }
 

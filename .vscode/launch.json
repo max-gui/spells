@@ -15,8 +15,8 @@
                 "-apppath=/Users/jimmy/Projects/hercules/spells",
                 "-port=8080",
                 "-consulhost=http://consul-prod.paic.com.cn",
-                "-consolvername=af-hercules.paic.com.cn/service/fls-aflm-prod/consolver"
-                // "-jsonlog=true"
+                // "-consolvername=af-hercules.paic.com.cn/service/fls-aflm-prod/consolver"
+                // "-jsonlog=true",
             ]
         },
         {

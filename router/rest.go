@@ -109,6 +109,8 @@ func ginCommitMiddle() gin.HandlerFunc {
 }
 
 func health(c *gin.Context) {
+	logger := logagent.InstArch(c)
+	logger.Info("wonderful!")
 	c.String(http.StatusOK, "online")
 }
 

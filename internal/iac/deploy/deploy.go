@@ -1,12 +1,14 @@
 package deploy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 
 	"sync"
 	"time"
@@ -236,19 +238,26 @@ func deploy4target(appconf archfig.Arch_config,
 		archfig.EnvInfo{
 			Env: env,
 			Dc:  dc,
-		}, region, branch, genconf, c)
+		}, region, branch, c)
 	// realseName, depmap = fn2(appconf, BuildEnv, envstr, realseName, region, branch)
 	// depmap["BuildEnv"] = env
 	// depmap["prfileActive"] = envdc
 	// depmap["dc"] = dc
 	deploymapseq := [][]map[string]string{}
 	deploymapseq = append(deploymapseq, []map[string]string{depmap})
+
+	envstrlist := []string{depmap["prfileActive"]}
+	if genconf {
+		genConfAppend(appconf, envstrlist, c)
+	}
+
 	return deploymapseq
 }
 
 // deployhelp(appconf, env, dc, region, branch)
 func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region string, branch string, genconf bool, c context.Context) [][]map[string]string {
 	deploymapseq := [][]map[string]string{}
+	envstrlist := []string{}
 	for _, v := range appconf.Deploy.Stratail[env] {
 		deploymaps := []map[string]string{}
 		for _, envinfo := range v {
@@ -261,11 +270,14 @@ func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region 
 			if envinfo.Env != "prod" && region == "rc" {
 				continue
 			}
-			depmap := genjenkloymap(appconf, envinfo, region, branch, genconf, c)
+
+			depmap := genjenkloymap(appconf, envinfo, region, branch, c)
 			// depmap["BuildEnv"] = envinfo.Env
 			// depmap["prfileActive"] = envdc
 			// depmap["dc"] = envinfo.Dc
 			deploymaps = append(deploymaps, depmap)
+			envstrlist = append(envstrlist, depmap["prfileActive"])
+			// envstrlist = append(envstrlist,depmap["prfileActive"]}
 			// deploymap = append(deploymap, map[string]string{
 			// 	"BuildEnv":         env,
 			// 	"jenkinsNode":      "build-slave-node2",
@@ -285,6 +297,17 @@ func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region 
 		}
 		deploymapseq = append(deploymapseq, deploymaps)
 	}
+
+	if genconf {
+		genConfAppend(appconf, envstrlist, c)
+	}
+
+	// var realseName string
+	// if envinfo.Env == "prod" || envinfo.Env == "dr" {
+	// 	realseName = appconf.Application.Name + ""
+	// } else {
+	// 	realseName = appconf.Application.Name + "-v" + region
+
 	return deploymapseq
 }
 
@@ -328,7 +351,7 @@ type ConfsolverIac struct {
 }
 
 func genjenkloymap(appconf archfig.Arch_config,
-	envinfo archfig.EnvInfo, region, branch string, genconf bool, c context.Context) map[string]string {
+	envinfo archfig.EnvInfo, region, branch string, c context.Context) map[string]string {
 	// envstr := envinfo.Env + "-" + envinfo.Dc
 
 	envstr := getenvstr(envinfo)
@@ -339,9 +362,6 @@ func genjenkloymap(appconf archfig.Arch_config,
 	// } else {
 	// 	realseName = appconf.Application.Name + "-v" + region
 
-	if genconf {
-		genConfAppend(appconf, envstr, c)
-	}
 	//curl http://arch-spells/generateConfig/iac/
 	// apolloEnv
 	// apolloCluster
@@ -402,12 +422,13 @@ func genjenkinsmap(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envstr 
 		"iacenv":       *logsets.Appenv,
 		"isupdate":     "false",
 		"archfig":      string(bytes),
+		"unbuild":      strconv.FormatBool(envinfo.Dc != *logsets.Appdc),
 	}
 
 	return depmap
 }
 
-func genConfAppend(appconf archfig.Arch_config, envstr string, c context.Context) {
+func genConfAppend(appconf archfig.Arch_config, envstrlist []string, c context.Context) {
 	log := logagent.InstArch(c)
 
 	var netTransport = &http.Transport{
@@ -420,7 +441,29 @@ func genConfAppend(appconf archfig.Arch_config, envstr string, c context.Context
 		Timeout:   time.Second * 10,
 		Transport: netTransport,
 	}
-	response, err := netClient.Get("http://" + *constset.Consolvername + "/conf/gen/" + appconf.Application.Name)
+
+	// values := []string{""}
+	json_data, err := json.Marshal(envstrlist)
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// resp, err := http.Post("https://httpbin.org/post", "application/json",
+	// 	bytes.NewBuffer(json_data))
+
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// var res map[string]interface{}
+
+	// json.NewDecoder(resp.Body).Decode(&res)
+
+	// fmt.Println(res["json"])
+
+	response, err := netClient.Post("http://"+*constset.Consolvername+"/conf/gen/"+appconf.Application.Name, "application/json",
+		bytes.NewBuffer(json_data))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -433,7 +476,7 @@ func genConfAppend(appconf archfig.Arch_config, envstr string, c context.Context
 	if err != nil {
 		log.Panic(err)
 	}
-	if val, ok := resjson.Data[envstr]; ok {
+	if val, ok := resjson.Data[envstrlist[0]]; ok {
 		for k, v := range val {
 			appconf.Environment.Tag[k] = v
 		}
