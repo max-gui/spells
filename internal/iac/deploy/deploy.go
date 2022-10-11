@@ -443,7 +443,7 @@ func genjenkinsmap(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envstr 
 		"iacenv":       *logsets.Appenv,
 		"isupdate":     "false",
 		"archfig":      string(bytes),
-		"unbuild":      strconv.FormatBool(envinfo.Dc != *logsets.Appdc),
+		"Unbuild":      strconv.FormatBool(envinfo.Dc != *logsets.Appdc),
 	}
 
 	return depmap
