@@ -4,11 +4,11 @@
     "colId": "3dfade9c-8f7b-4e7f-8a4c-35cfd6a0aa2f",
     "containerId": "",
     "name": "http://127.0.0.1:8080/apply/deploy/strategy/:appname/:appid/:env/:region/:branch/:team/:proj",
-    "url": "http://127.0.0.1:8080/apply/deploy/strategy/fls-aflm-fund-aggregation/fls-aflm/test/default/v20220602/arch/fund",
+    "url": "http://127.0.0.1:8080/apply/deploy/strategy/fls-cgj-wx-server/fls-cgj/test/20221103/20221103/arch/fund",
     "method": "POST",
     "sortNum": 10000,
     "created": "2022-10-08T05:07:45.514Z",
-    "modified": "2022-10-08T05:07:45.514Z",
+    "modified": "2022-10-19T08:59:58.628Z",
     "headers": [],
     "params": [],
     "tests": []

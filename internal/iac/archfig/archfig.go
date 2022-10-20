@@ -121,6 +121,7 @@ type Arch_config struct {
 			Flow string   `yaml:"flow,omitempty"`
 			Env  []string `yaml:"env,omitempty"`
 		} `yaml:"strategy,omitempty"`
+		Dcenv    []string               `yaml:"dcenv,omitempty"`
 		Stratail map[string][][]EnvInfo `yaml:"stratail,omitempty"`
 		Runtime  struct {
 			Args []string            `yaml:"args,omitempty"`
@@ -698,6 +699,12 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 				// app_conf.Deploy.Stratail[env] = append(app_conf.Deploy.Stratail[env], strings.Split(sflow, "|"))
 			}
 			// app_conf.Deploy.Stratail[env] = ff //struct{ Flow string }{Flow: v.Flow}
+		}
+	}
+
+	for defdc, defenvlist := range defconf.Defualtinfo.Datacenter {
+		for _, defenv := range defenvlist {
+			app_conf.Deploy.Dcenv = append(app_conf.Deploy.Dcenv, defenv+defdc)
 		}
 	}
 

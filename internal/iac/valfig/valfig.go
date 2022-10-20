@@ -131,7 +131,10 @@ func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc stri
 
 		return res
 	}(appconf.Deploy.Runtime.Ign[envinfo.Env])
-
+	// appconf.Deploy.Runtime.Args = append(appconf.Deploy.Runtime.Args, "-Dapollo.cluster=default")
+	// appconf.Deploy.Runtime.Args = append(appconf.Deploy.Runtime.Args, "-Dapollo.cluster=default")
+	logger := logagent.InstArch(c)
+	logger.Info(appconf.Deploy.Runtime.Args)
 	for _, arg := range appconf.Deploy.Runtime.Args {
 		if _, ok := ignmap[arg]; !ok {
 			argstr = argstr + " " + arg
@@ -139,6 +142,7 @@ func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc stri
 	}
 
 	argstr = strings.Trim(argstr, " ")
+	logger.Info(argstr)
 
 	// argstr = appconf.Deploy.Runtime.Args
 	// for _, v := range appconf.Deploy.Runtime.Ign[envinfo.Env] {

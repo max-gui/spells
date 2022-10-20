@@ -310,26 +310,26 @@ func confAppend(genconf bool, appconf archfig.Arch_config, c context.Context) {
 	if !genconf {
 		return
 	}
+	// defig.
+	// var genEnvstrlist = func(appconfig archfig.Arch_config) []string {
+	// 	envdcstrmap := map[string]interface{}{}
+	// 	for _, v := range appconfig.Deploy.Stratail {
+	// 		for _, vele := range v {
+	// 			for _, envdcinfo := range vele {
+	// 				envdcstrmap[envdcinfo.Env+envdcinfo.Dc] = struct{}{}
+	// 			}
+	// 		}
+	// 	}
 
-	var genEnvstrlist = func(appconfig archfig.Arch_config) []string {
-		envdcstrmap := map[string]interface{}{}
-		for _, v := range appconfig.Deploy.Stratail {
-			for _, vele := range v {
-				for _, envdcinfo := range vele {
-					envdcstrmap[envdcinfo.Env+envdcinfo.Dc] = struct{}{}
-				}
-			}
-		}
+	// 	envstrlist := []string{}
+	// 	for k, _ := range envdcstrmap {
+	// 		envstrlist = append(envstrlist, k)
+	// 	}
+	// 	return envstrlist
+	// }
 
-		envstrlist := []string{}
-		for k, _ := range envdcstrmap {
-			envstrlist = append(envstrlist, k)
-		}
-		return envstrlist
-	}
-
-	envstrlist := genEnvstrlist(appconf)
-	genConfAppend(appconf, envstrlist, c)
+	// envstrlist := genEnvstrlist(appconf)
+	genConfAppend(appconf, appconf.Deploy.Dcenv, c)
 }
 
 // func genjenkloymapold(appconf archfig.Arch_config,
@@ -489,12 +489,15 @@ func genConfAppend(appconf archfig.Arch_config, envstrlist []string, c context.C
 		log.Panic(err)
 	}
 	resbody, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Panic(err)
+	if err != nil || response.StatusCode != 200 {
+		log.Panic("consolver gen :" + string(resbody))
 	}
 	var resjson = ConfsolverIac{}
 	err = json.Unmarshal(resbody, &resjson)
 	if err != nil {
+		log.Panic(err)
+	}
+	if resjson.Error != "" {
 		log.Panic(err)
 	}
 	if val, ok := resjson.Data[envstrlist[0]]; ok {

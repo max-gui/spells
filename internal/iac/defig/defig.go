@@ -45,7 +45,8 @@ type Defconf struct {
 			Cpu      string `yaml:"cpu,omitempty"`
 			Mem      string `yaml:"mem,omitempty"`
 		} `yaml:"capacity,omitempty"`
-		Deploy struct {
+		Datacenter map[string][]string `yaml:"datacenter,omitempty"`
+		Deploy     struct {
 			Limited  []string `yaml:"limited,omitempty"`
 			Strategy []struct {
 				Flow string   `yaml:"flow,omitempty"`
