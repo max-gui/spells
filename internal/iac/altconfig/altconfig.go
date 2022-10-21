@@ -169,6 +169,9 @@ func Arch_commit(filecontentinfo archfig.FileContentInfo, repourl string, instal
 				appconf.RMArch(c)
 			} else if filecontentinfo.Status == "A" || filecontentinfo.Status == "M" {
 				orgconf := archfig.GenArchConfFromBytes([]byte(filecontentinfo.Content), c)
+				if orgconf.Application.Type == "java" && filecontentinfo.Status == "A" {
+					log.Panic("can't add new java8 application")
+				}
 				appconf := archfig.GetArchfigByGitContentSin(orgconf, appfname, false, c)
 				appconf.Application.Repositry = repourl
 				if filecontentinfo.Status == "A" {
