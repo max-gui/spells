@@ -91,7 +91,7 @@ func Gempl(templ *template.Template, a interface{}, c context.Context) string {
 	// dirPth = abstestpath + PthSep + "orgconfig" + PthSep + "Dockerfile." + a.Application.Type
 	// templ := fn1(dirPth)
 	var buffer bytes.Buffer
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	err := templ.Execute(&buffer, a)
 	if err != nil {
@@ -107,7 +107,7 @@ var templMap = make(map[string]*template.Template)
 func Getempl(tempfile string, templname string, isinstall bool, c context.Context) *template.Template {
 
 	// var buffer bytes.Buffer
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	templ, err := template.New(templname).Funcs(funcMap()).Parse(tempfile) //.Funcs(sprig.FuncMap()).Parse
 	// templ, err := template.New(templname).Parse(tempfile)
 	if err != nil {
@@ -138,7 +138,7 @@ func RMtempl(templname string) {
 func GetemplFrom(dirPth, templname string, isinstall bool, c context.Context) *template.Template {
 	var err error
 	var f string
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	f, err = fileops.Read(dirPth)
 	if err != nil {
 		log.Panic(err)

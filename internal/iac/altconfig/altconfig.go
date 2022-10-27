@@ -19,7 +19,7 @@ import (
 
 func Arch_commits(commitinfo CommitCheckHookInfo, install bool, c context.Context) {
 	// var archr *git.Repository
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	var iacr *git.Repository
 	if install {
 		gitres := githelp.UpdateAll(c)
@@ -132,7 +132,7 @@ func Arch_commits(commitinfo CommitCheckHookInfo, install bool, c context.Contex
 }
 
 func Tmpt(filesinfo []githelp.Writeinfo, repoUrl, branch, repoPath string, install bool, c context.Context) {
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	if install {
 		repor, err := githelp.CloneGetrepo(repoUrl, branch, repoPath, c)
 		if err != nil && err != git.NoErrAlreadyUpToDate {
@@ -151,7 +151,7 @@ type Archalt struct {
 func Arch_commit(filecontentinfo archfig.FileContentInfo, repourl string, install bool, c context.Context) ([]githelp.Writeinfo, []Archalt) {
 	var changes []githelp.Writeinfo
 	var archalts []Archalt //archfig.Arch_config
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	if strings.Contains(filecontentinfo.Path, ".yaml") {
 
 		if strings.Contains(filecontentinfo.Status, "R") {
@@ -196,7 +196,7 @@ func Arch_commit(filecontentinfo archfig.FileContentInfo, repourl string, instal
 
 func Findarchfile(filenames map[string]struct{}, c context.Context) map[string]struct{} {
 	dirPth := constset.Archpath
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	var fullpath = map[string]struct{}{}
 	filepath.WalkDir(dirPth, func(path string, d os.DirEntry, err error) error {
@@ -220,7 +220,7 @@ func Findarchfile(filenames map[string]struct{}, c context.Context) map[string]s
 func ArchAltGenWithChangesWithOrg(appconf, orgconf archfig.Arch_config, install bool, del bool, c context.Context) ([]githelp.Writeinfo, []Archalt) {
 
 	var filesinfo = []githelp.Writeinfo{}
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	if appconf.Application.Ungenfig {
 		return filesinfo, []Archalt{}
 	}

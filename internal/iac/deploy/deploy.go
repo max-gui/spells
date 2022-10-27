@@ -53,7 +53,7 @@ func TargetFlashRelease(branch, env, dc, appname, team, proj, region string, c c
 
 func FlashNOps(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, genconf bool, c context.Context) []deployresult {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	if iac.IsBranchNameIllegal(branch, env) {
 		log.Panic("branch name is ilegal")
@@ -110,7 +110,7 @@ func FlashNOps(branch, env, dc, appname, team, proj, region string, updateRepo b
 
 func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhelp dcenvdeploy, c context.Context) []deployresult {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	if iac.IsBranchNameIllegal(branch, env) {
 		log.Panic("branch name is ilegal")
@@ -157,7 +157,7 @@ func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhel
 
 func FlashNrelease(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, c context.Context) []deployresult {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	if iac.IsBranchNameIllegal(branch, env) {
 		log.Panic("branch name is ilegal")
@@ -395,7 +395,7 @@ func genjenkinsmap(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envstr 
 
 	var valstring, dockerstring string
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	// }
 	realseName := appconf.Application.Name + "-" + envinfo.Env + "-" + region
@@ -450,7 +450,7 @@ func genjenkinsmap(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envstr 
 }
 
 func genConfAppend(appconf archfig.Arch_config, envstrlist []string, c context.Context) {
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
@@ -601,7 +601,7 @@ type deployresult struct {
 
 func releaseSingle(releaseinfo map[string]string, isupdate, flag bool, c context.Context) deployresult {
 	// var resurl deployresult
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	depres := deployresult{Dcenv: releaseinfo["BuildEnv"], Dc: releaseinfo["dc"]}
 
@@ -657,7 +657,7 @@ func releaseSingle(releaseinfo map[string]string, isupdate, flag bool, c context
 
 func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.Context) deployresult {
 	// var resurl deployresult
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	depres := deployresult{Dcenv: deployinfo["BuildEnv"], Dc: deployinfo["dc"]}
 	if !flag {
@@ -792,7 +792,7 @@ func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.C
 func opsMultiply(deployinfoseq [][]map[string]string, isupdate bool, opsingle opsmethod, c context.Context) []deployresult {
 	var resurl []deployresult
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	flag := true
 	for _, deployinfos := range deployinfoseq {
@@ -1019,7 +1019,7 @@ func Checkresults(checkinfos []DeploycheckInfo, jobname string, c context.Contex
 // jobname string, envinfo archfig.EnvInfo, taskindex int64
 func Checkresult(checkinfo DeploycheckInfo, jobname string, c context.Context) checkResult {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	envinfo := archfig.EnvInfo{Dc: checkinfo.Dc, Env: checkinfo.Env}
 	envstr := getenvstr(envinfo)

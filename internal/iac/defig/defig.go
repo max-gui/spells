@@ -92,7 +92,7 @@ func ClearDefconfig() {
 // var dockerpath = constset.Apppath + constset.PthSep + "repo" + constset.PthSep + "temple" + constset.PthSep
 func GenDefig(isinstall bool, c context.Context) Defconf {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	dirPth := constset.Defconfpath // constset.Templepath + "defaultconfig.yaml"
 	str, err := os.ReadFile(dirPth)
 	if err != nil {
@@ -106,7 +106,7 @@ func GenDefig(isinstall bool, c context.Context) Defconf {
 
 func GenDefigFrom(content []byte, isinstall bool, c context.Context) Defconf {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	log.Println(string(content))
 	defconf := Defconf{}
 	err := yaml.Unmarshal(content, &defconf)

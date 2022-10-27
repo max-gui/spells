@@ -39,7 +39,7 @@ func StartupInit(bytes []byte, c context.Context) {
 	Templname = "Templrepo"
 	Dbname = "Dbrepo"
 	readkey, err := ioutil.ReadFile(*logsets.Apppath + string(os.PathSeparator) + "code_key")
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	if err != nil {
 		log.Panic(err)
 	}

@@ -55,6 +55,11 @@ func SetupRouter() *gin.Engine {
 		v2.POST("/direct/:appname/:appid/:dcenv/:dc/:region/:branch/:team/:proj", targetDeploy)
 		v2.POST("/result/task/:env/:dc/:jobname/:taskindex", deployCheck)
 		v2.POST("/result/tasks/:jobname", deployChecks)
+
+		// v2.POST("/strategy/list", applyDeploy)
+		// v2.POST("/direct/list", targetDeploy)
+		// v2.POST("/result/task/list", deployCheck)
+		// v2.POST("/result/tasks/list", deployChecks)
 	}
 	v5 := r.Group("/apply/resource")
 	{
@@ -109,7 +114,7 @@ func ginCommitMiddle() gin.HandlerFunc {
 }
 
 func health(c *gin.Context) {
-	logger := logagent.InstArch(c)
+	logger := logagent.InstPlatform(c)
 	logger.Info("wonderful!")
 	c.String(http.StatusOK, "online")
 }
@@ -141,7 +146,7 @@ func deployChecks(c *gin.Context) {
 	// 	checkinfos = append(checkinfos, deploy.DeploycheckInfo{Dc: "LFB", Env: "test", Taskindex: val})
 	// }
 
-	log := logagent.InstArch(c).WithField("ops-method", "deployChecks").WithField("check-jobname", jobname)
+	log := logagent.InstPlatform(c).WithField("ops-method", "deployChecks").WithField("check-jobname", jobname)
 	// deploymap = fn0(appconf, env, region, branch, appname)
 	log.Print("start")
 
@@ -168,7 +173,7 @@ func deployCheck(c *gin.Context) {
 	dc := c.Param("dc")
 	// envinfo := archfig.EnvInfo{Env: env, Dc: dc}
 	// appid := c.Param("appid")
-	log := logagent.InstArch(c).WithField("ops-method", "deployCheck").WithField("check-jobname", jobname)
+	log := logagent.InstPlatform(c).WithField("ops-method", "deployCheck").WithField("check-jobname", jobname)
 	// deploymap = fn0(appconf, env, region, branch, appname)
 	log.Print("start")
 
@@ -202,7 +207,7 @@ func targetDeploy(c *gin.Context) {
 	env := c.Param("dcenv")
 	dc := c.Param("dc")
 
-	log := logagent.InstArch(c).WithField("ops-method", "targetDeploy").WithField("deploy-app", appname).WithField("deploy-branch", branch).WithField("deploy-region", region)
+	log := logagent.InstPlatform(c).WithField("ops-method", "targetDeploy").WithField("deploy-app", appname).WithField("deploy-branch", branch).WithField("deploy-region", region)
 	// deploymap = fn0(appconf, env, region, branch, appname)
 	log.Print("start")
 	// resurl := deploy.FlashNdeploy4Target(branch, env, dc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
@@ -248,7 +253,7 @@ func applyDeploy(c *gin.Context) {
 	// 	// "Projname":			proj,
 	// 	deploymap = fn1(appconf, BuildEnv, dc, region, branch, appname)
 	// }
-	log := logagent.InstArch(c).WithField("ops-method", "applyDeploy").WithField("deploy-app", appname).WithField("deploy-branch", branch).WithField("deploy-region", region)
+	log := logagent.InstPlatform(c).WithField("ops-method", "applyDeploy").WithField("deploy-app", appname).WithField("deploy-branch", branch).WithField("deploy-region", region)
 	// deploymap = fn0(appconf, env, region, branch, appname)
 	log.Print("start")
 	// resurl := deploy.FlashNdeploy4Strtegy(branch, env, dc, appname, team, proj, region, c) //renew4deploy(branch, env, dc, appname, team, proj, region, deploy4strategy)
@@ -294,7 +299,7 @@ func applyResFree(c *gin.Context) {
 	// 	// "Projname":			proj,
 	// 	deploymap = fn1(appconf, BuildEnv, dc, region, branch, appname)
 	// }
-	log := logagent.InstArch(c).WithField("ops-method", "applyResFree").WithField("release-app", appname).WithField("region", region)
+	log := logagent.InstPlatform(c).WithField("ops-method", "applyResFree").WithField("release-app", appname).WithField("region", region)
 	// deploymap = fn0(appconf, env, region, branch, appname)
 	log.Print("start")
 	resurl := deploy.StrtegyFlashRelease(branch, env, dc, appname, team, proj, region, c) //renew4deploy(branch, env, dc, appname, team, proj, region, deploy4strategy)
@@ -315,7 +320,7 @@ func targetResFree(c *gin.Context) {
 	env := c.Param("dcenv")
 	dc := c.Param("dc")
 
-	log := logagent.InstArch(c).WithField("ops-method", "targetResFree").WithField("release-app", appname).WithField("region", region)
+	log := logagent.InstPlatform(c).WithField("ops-method", "targetResFree").WithField("release-app", appname).WithField("region", region)
 	// deploymap = fn0(appconf, env, region, branch, appname)
 	log.Print("start")
 	resurl := deploy.TargetFlashRelease(branch, env, dc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
@@ -349,7 +354,7 @@ func ArchDef_commit_check(c *gin.Context) {
 	// json := make(map[string]string) //注意该结构接受的内容
 	// mm := make(map[string]interface{})
 	c.BindJSON(&commitcheck)
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	log.Println(commitcheck)
 
 	// f0:=func(filename )
@@ -371,7 +376,7 @@ func Arch_commit_check(c *gin.Context) {
 	commitcheck := altconfig.CommitCheckHookInfo{}
 
 	c.BindJSON(&commitcheck)
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	log.Println(commitcheck)
 	c.JSON(http.StatusOK, gin.H{
 		"ret": 1,
@@ -529,7 +534,7 @@ func clear_hook(c *gin.Context) {
 	// mm := make(map[string]interface{})
 	c.BindJSON(&commitcheck)
 	bs, err := json.Marshal(commitcheck)
-	log := logagent.InstArch(c).WithField("ops-method", "clear_hook")
+	log := logagent.InstPlatform(c).WithField("ops-method", "clear_hook")
 	if len(commitcheck.CommitIds) > 0 {
 		log = log.WithField("commitid", commitcheck.CommitIds[0])
 	} else {
@@ -577,7 +582,7 @@ func separate_commit_hook(c *gin.Context) {
 	c.BindJSON(&commitcheck)
 	bs, err := json.Marshal(commitcheck)
 
-	log := logagent.InstArch(c).WithField("ops-method", "separate_commit_hook")
+	log := logagent.InstPlatform(c).WithField("ops-method", "separate_commit_hook")
 	if len(commitcheck.CommitIds) > 0 {
 
 		log = log.WithField("commitid", commitcheck.CommitIds[0])
@@ -636,7 +641,7 @@ func arch_install(c *gin.Context) {
 	c.BindJSON(&archinfo)
 	bs, err := json.Marshal(archinfo)
 	json.Marshal(archfig.Arch_config{})
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	if err != nil {
 		log.Print(err)
 	}
@@ -661,7 +666,7 @@ func Commit_hook(c *gin.Context) {
 	// mm := make(map[string]interface{})
 	c.BindJSON(&commitcheck)
 	bs, _ := json.Marshal(commitcheck)
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	log.Println(string(bs))
 
 	var installflag = false
@@ -693,7 +698,7 @@ func MrHook(c *gin.Context) {
 }
 
 func Sql_commits(commitinfo altconfig.CommitCheckHookInfo, c context.Context) {
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	for _, c := range commitinfo.ChangedFiles {
 		// for _, a := range c..Added {
 		if strings.Contains(c.Status, "R") {
@@ -712,7 +717,7 @@ func Sql_commits(commitinfo altconfig.CommitCheckHookInfo, c context.Context) {
 func Sql_commit(filecontentinfo archfig.FileContentInfo, repopath string, install bool, c context.Context) githelp.Writeinfo {
 	var fileinfo githelp.Writeinfo
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	if strings.Contains(filecontentinfo.Path, ".sql") {
 		if strings.Contains(filecontentinfo.Status, "R") {
 			log.Panic("delete and add can't be in one commit,please split and push")

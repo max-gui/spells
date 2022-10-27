@@ -91,7 +91,7 @@ func GenValfile(valfig ValuesInfo, c context.Context) string {
 	name := "basic.yml"
 	// valuestr := templ.GemplFrom(name, valfig, c)
 	valuestr := templ.GemplFromType(name, "values", valfig, c)
-	logger := logagent.InstArch(c)
+	logger := logagent.InstPlatform(c)
 	logger.Print(valuestr)
 	valuesinfo := map[string]interface{}{}
 	err := yaml.Unmarshal([]byte(valuestr), &valuesinfo)
@@ -133,7 +133,7 @@ func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc stri
 	}(appconf.Deploy.Runtime.Ign[envinfo.Env])
 	// appconf.Deploy.Runtime.Args = append(appconf.Deploy.Runtime.Args, "-Dapollo.cluster=default")
 	// appconf.Deploy.Runtime.Args = append(appconf.Deploy.Runtime.Args, "-Dapollo.cluster=default")
-	logger := logagent.InstArch(c)
+	logger := logagent.InstPlatform(c)
 	logger.Info(appconf.Deploy.Runtime.Args)
 	for _, arg := range appconf.Deploy.Runtime.Args {
 		if _, ok := ignmap[arg]; !ok {

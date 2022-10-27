@@ -151,7 +151,7 @@ type Arch_config struct {
 }
 
 func getContentInfo(fcinfo FileContentInfo, c context.Context) []string {
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	log.Print(fcinfo.Content)
 	tailpath := strings.Split(fcinfo.Path, "arch/")[1]
@@ -188,7 +188,7 @@ func GetArchfigSin(appname string, c context.Context) Arch_config {
 	defer func() {
 		if e := recover(); e != nil {
 
-			logger := logagent.InstArch(c)
+			logger := logagent.InstPlatform(c)
 			logger.WithField("misarch", appname).
 				Info("miss iac data")
 		}
@@ -243,7 +243,7 @@ func GetAppconfig(appname, team, proj string, c context.Context) Arch_config {
 
 func GenArchConfigFromSin(appconfpath, appfname string, isinstall bool, c context.Context) Arch_config {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	dirPth := constset.Archpath + appconfpath
 	str, err := os.ReadFile(dirPth)
@@ -255,7 +255,7 @@ func GenArchConfigFromSin(appconfpath, appfname string, isinstall bool, c contex
 
 func GenArchConfigFrom(appconfpath, team, proj, appfname string, isinstall bool, c context.Context) Arch_config {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	dirPth := constset.Archpath + appconfpath
 	str, err := os.ReadFile(dirPth)
@@ -285,7 +285,7 @@ func ReGenArchConfig(appfname string, c context.Context) Arch_config {
 
 func GenArchConfig(appconf []byte, team, proj, appfname string, isinstall bool, c context.Context) Arch_config {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	app_conf := GenArchConfigSin(appconf, appfname, isinstall, c)
 
@@ -324,7 +324,7 @@ func GenArchConfigSin(appconf []byte, appfname string, isinstall bool, c context
 }
 
 func GenArchConfFromBytes(appconf []byte, c context.Context) Arch_config {
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	orgconf := Arch_config{}
 	log.Print(string(appconf))
@@ -339,7 +339,7 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 	// dirPth := appconfpath
 	// str, _ := ioutil.ReadFile(dirPth)
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	defconf := defig.GetDefconfig(c)
 	log.Print(app_conf)
@@ -803,7 +803,7 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 // }
 
 func setWhiteList(open bool, appname, confkey string, c context.Context) map[string]struct{} {
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	maplist := map[string]struct{}{}
 
 	if open {

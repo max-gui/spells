@@ -22,7 +22,7 @@ func GenSideContent(sides Sidefig, c context.Context) []interface{} {
 	// a := Arch_config{}
 	// yaml.Unmarshal(str, &a)
 	// t.Log(a)
-	logger := logagent.InstArch(c)
+	logger := logagent.InstPlatform(c)
 
 	neighbourmap := []interface{}{}
 	for _, neighbour := range sides.Neighbours {

@@ -31,7 +31,7 @@ type jobInfo struct {
 
 func GetJenkins(envdc string, c context.Context) (*gojenkins.Jenkins, string, error) {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 
 	// confmap := map[string]interface{}{}
 	confmap := confload.LoadEnv(envdc, c).(map[string]interface{})
@@ -92,7 +92,7 @@ func genJobInfo(appid, appname string) (string, string, string) {
 
 func IsSameJob(jenkins *gojenkins.Jenkins, appname, appid string, c context.Context) bool {
 
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	bb := ""
 	para := "/job/iac-" + appname + "/config.xml"
 	_, err := jenkins.Requester.GetXML(c, para, &bb, nil)

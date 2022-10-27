@@ -33,6 +33,8 @@ import (
 // 	Appid            string
 // }
 
+var countGuard sync.Mutex
+
 type Writeinfo struct {
 	Filepath string
 	Content  string
@@ -47,8 +49,9 @@ type RepoCloneResult struct {
 }
 
 func UpdateAll(c context.Context) map[string]RepoCloneResult {
+	countGuard.Lock()
 	urlPathMap := []map[string]string{}
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	urlPathMap = append(urlPathMap, map[string]string{"name": constset.Archname, "path": constset.Archpath, "url": constset.Archurl, "branch": "master"})
 	urlPathMap = append(urlPathMap, map[string]string{"name": constset.Iacname, "path": constset.Iacpath, "url": constset.IacUrl, "branch": *constset.IacBranch})
 	urlPathMap = append(urlPathMap, map[string]string{"name": constset.Templname, "path": constset.Templepath, "url": constset.Templurl, "branch": "master"})
@@ -92,6 +95,8 @@ func UpdateAll(c context.Context) map[string]RepoCloneResult {
 		}
 		results[v.Name] = v
 	}
+
+	countGuard.Unlock()
 	return results
 }
 
@@ -172,7 +177,7 @@ func CloneGetrepo(repourl, branch, localpath string, c context.Context) (*git.Re
 	var r *git.Repository
 	var err error
 	var w *git.Worktree
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	if _, err = os.Stat(localpath); os.IsNotExist(err) {
 		// os.MkdirAll(localpath, 0777)
 		// os.MkdirAll(localpath, 0777) //os.ModeDir.Perm())
@@ -227,9 +232,10 @@ func CloneGetrepo(repourl, branch, localpath string, c context.Context) (*git.Re
 }
 
 func CommitPushFiles(filesinfo []Writeinfo, repo *git.Repository, perfixstr string, c context.Context) bool {
-
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	if len(filesinfo) > 0 {
+		countGuard.Lock()
+
 		// perfixstr := constset.Iacpath
 		w, err := repo.Worktree()
 		if err != nil {
@@ -255,6 +261,8 @@ func CommitPushFiles(filesinfo []Writeinfo, repo *git.Repository, perfixstr stri
 		}
 
 		isupdate := commitPush(w, repo, c)
+		countGuard.Unlock()
+
 		return isupdate
 	} else {
 		return false
@@ -262,7 +270,7 @@ func CommitPushFiles(filesinfo []Writeinfo, repo *git.Repository, perfixstr stri
 }
 
 func commitPush(w *git.Worktree, r *git.Repository, c context.Context) bool {
-	log := logagent.InstArch(c)
+	log := logagent.InstPlatform(c)
 	st, err := w.Status()
 	if err != nil {
 		log.Print(err)
