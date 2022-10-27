@@ -75,7 +75,7 @@ func ClsAppfig() {
 }
 
 func Clearcachelocal() {
-	ClsAppfig()
+	// ClsAppfig()
 	templ.ClsGempl()
 }
 
