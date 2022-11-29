@@ -17,11 +17,7 @@ type Sidefig struct {
 }
 
 func GenSideContent(sides Sidefig, c context.Context) []interface{} {
-	// dirPth := orgconfigPth + pthSep + "arch.yaml"
-	// str, _ := ioutil.ReadFile(dirPth)
-	// a := Arch_config{}
-	// yaml.Unmarshal(str, &a)
-	// t.Log(a)
+
 	logger := logagent.InstPlatform(c)
 
 	neighbourmap := []interface{}{}

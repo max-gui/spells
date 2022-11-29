@@ -33,8 +33,6 @@ import (
 // 	Appid            string
 // }
 
-var countGuard sync.Mutex
-
 type Writeinfo struct {
 	Filepath string
 	Content  string
@@ -49,7 +47,6 @@ type RepoCloneResult struct {
 }
 
 func UpdateAll(c context.Context) map[string]RepoCloneResult {
-	countGuard.Lock()
 	urlPathMap := []map[string]string{}
 	log := logagent.InstPlatform(c)
 	urlPathMap = append(urlPathMap, map[string]string{"name": constset.Archname, "path": constset.Archpath, "url": constset.Archurl, "branch": "master"})
@@ -96,7 +93,6 @@ func UpdateAll(c context.Context) map[string]RepoCloneResult {
 		results[v.Name] = v
 	}
 
-	countGuard.Unlock()
 	return results
 }
 
@@ -234,7 +230,6 @@ func CloneGetrepo(repourl, branch, localpath string, c context.Context) (*git.Re
 func CommitPushFiles(filesinfo []Writeinfo, repo *git.Repository, perfixstr string, c context.Context) bool {
 	log := logagent.InstPlatform(c)
 	if len(filesinfo) > 0 {
-		countGuard.Lock()
 
 		// perfixstr := constset.Iacpath
 		w, err := repo.Worktree()
@@ -261,7 +256,6 @@ func CommitPushFiles(filesinfo []Writeinfo, repo *git.Repository, perfixstr stri
 		}
 
 		isupdate := commitPush(w, repo, c)
-		countGuard.Unlock()
 
 		return isupdate
 	} else {
@@ -286,7 +280,7 @@ func commitPush(w *git.Worktree, r *git.Repository, c context.Context) bool {
 			When:  time.Now(),
 		}})
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 	publicKey, err := ssh.NewPublicKeys("git", []byte(constset.Sshkey), "")
 
@@ -296,7 +290,7 @@ func commitPush(w *git.Worktree, r *git.Repository, c context.Context) bool {
 	// auth, _ := publicKey()
 	err = r.Push(&git.PushOptions{Auth: publicKey})
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 
 	return true

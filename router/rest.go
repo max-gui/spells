@@ -114,8 +114,8 @@ func ginCommitMiddle() gin.HandlerFunc {
 }
 
 func health(c *gin.Context) {
-	logger := logagent.InstPlatform(c)
-	logger.Info("wonderful!")
+	// logger := logagent.InstPlatform(c)
+	// logger.Info("wonderful!")
 	c.String(http.StatusOK, "online")
 }
 

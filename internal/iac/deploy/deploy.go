@@ -25,8 +25,18 @@ import (
 	"github.com/max-gui/spells/internal/pkg/jenkinsops"
 )
 
+type DeployInfo struct {
+	Appname string
+	Env     string
+	Region  string
+	Branch  string
+	Team    string
+	Proj    string
+	Dc      string
+}
+
 type dcenvdeploy func(archfig.Arch_config, string, string, string, string, bool, context.Context) [][]map[string]string
-type opsmethod func(map[string]string, bool, bool, context.Context) deployresult
+type opsmethod func(map[string]string, bool, bool, context.Context) Deployresult
 
 // func FlashNdeploy4Strtegy(branch, env, dc, appname, team, proj, region string, c context.Context, genconf bool) []deployresult {
 // 	return FlashNOps(branch, env, dc, appname, team, proj, region, deploy4strategy, genconf, c)
@@ -35,23 +45,23 @@ type opsmethod func(map[string]string, bool, bool, context.Context) deployresult
 //	func FlashNdeploy4Target(branch, env, dc, appname, team, proj, region string, c context.Context, genconf bool) []deployresult {
 //		return FlashNOps(branch, env, dc, appname, team, proj, region, deploy4target, genconf, c)
 //	}
-func StrtegyFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
+func StrtegyFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
 	return FlashNOps(branch, env, dc, appname, team, proj, region, true, deploy4strategy, deploySingle, true, c)
 }
 
-func TargetFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
+func TargetFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
 	return FlashNOps(branch, env, dc, appname, team, proj, region, true, deploy4target, deploySingle, true, c)
 }
 
-func StrtegyFlashRelease(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
+func StrtegyFlashRelease(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
 	return FlashNOps(branch, env, dc, appname, team, proj, region, false, deploy4strategy, releaseSingle, false, c)
 }
 
-func TargetFlashRelease(branch, env, dc, appname, team, proj, region string, c context.Context) []deployresult {
+func TargetFlashRelease(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
 	return FlashNOps(branch, env, dc, appname, team, proj, region, false, deploy4target, releaseSingle, false, c)
 }
 
-func FlashNOps(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, genconf bool, c context.Context) []deployresult {
+func FlashNOps(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, genconf bool, c context.Context) []Deployresult {
 
 	log := logagent.InstPlatform(c)
 
@@ -108,7 +118,7 @@ func FlashNOps(branch, env, dc, appname, team, proj, region string, updateRepo b
 	return resurl
 }
 
-func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhelp dcenvdeploy, c context.Context) []deployresult {
+func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhelp dcenvdeploy, c context.Context) []Deployresult {
 
 	log := logagent.InstPlatform(c)
 
@@ -155,7 +165,7 @@ func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhel
 	return resurl
 }
 
-func FlashNrelease(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, c context.Context) []deployresult {
+func FlashNrelease(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, c context.Context) []Deployresult {
 
 	log := logagent.InstPlatform(c)
 
@@ -514,7 +524,7 @@ func getenvstr(envinfo archfig.EnvInfo) string {
 	return envstr
 }
 
-type deployresult struct {
+type Deployresult struct {
 	Resulturl string `json:"resulturl"`
 	JobName   string `json:"jobName"`
 	TaskIndex int64  `json:"taskIndex"`
@@ -599,11 +609,11 @@ type deployresult struct {
 // 	wg.Done()
 // }
 
-func releaseSingle(releaseinfo map[string]string, isupdate, flag bool, c context.Context) deployresult {
+func releaseSingle(releaseinfo map[string]string, isupdate, flag bool, c context.Context) Deployresult {
 	// var resurl deployresult
 	log := logagent.InstPlatform(c)
 
-	depres := deployresult{Dcenv: releaseinfo["BuildEnv"], Dc: releaseinfo["dc"]}
+	depres := Deployresult{Dcenv: releaseinfo["BuildEnv"], Dc: releaseinfo["dc"]}
 
 	ctx := context.Background()
 	// restmp := deployresult{status: false, msg: fmt.Sprintf("%v", e)}
@@ -655,11 +665,11 @@ func releaseSingle(releaseinfo map[string]string, isupdate, flag bool, c context
 	return depres
 }
 
-func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.Context) deployresult {
+func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.Context) Deployresult {
 	// var resurl deployresult
 	log := logagent.InstPlatform(c)
 
-	depres := deployresult{Dcenv: deployinfo["BuildEnv"], Dc: deployinfo["dc"]}
+	depres := Deployresult{Dcenv: deployinfo["BuildEnv"], Dc: deployinfo["dc"]}
 	if !flag {
 		depres.Status = false
 		depres.Msg = "deploy in front is error"
@@ -789,15 +799,15 @@ func deploySingle(deployinfo map[string]string, isupdate, flag bool, c context.C
 // 	return resurl
 // }
 
-func opsMultiply(deployinfoseq [][]map[string]string, isupdate bool, opsingle opsmethod, c context.Context) []deployresult {
-	var resurl []deployresult
+func opsMultiply(deployinfoseq [][]map[string]string, isupdate bool, opsingle opsmethod, c context.Context) []Deployresult {
+	var resurl []Deployresult
 
 	log := logagent.InstPlatform(c)
 
 	flag := true
 	for _, deployinfos := range deployinfoseq {
 		var wg sync.WaitGroup
-		ch := make(chan deployresult, len(deployinfos))
+		ch := make(chan Deployresult, len(deployinfos))
 		for _, deployinfo := range deployinfos {
 			// resurl = append(resurl, ) deploySingle(deployinfo, isupdate, flag)
 
@@ -806,7 +816,7 @@ func opsMultiply(deployinfoseq [][]map[string]string, isupdate bool, opsingle op
 				defer func() {
 					if e := recover(); e != nil {
 
-						ch <- deployresult{Dcenv: depinfo["BuildEnv"], Dc: depinfo["dc"], Status: false, Msg: fmt.Sprint(e)}
+						ch <- Deployresult{Dcenv: depinfo["BuildEnv"], Dc: depinfo["dc"], Status: false, Msg: fmt.Sprint(e)}
 						wg.Done()
 					}
 				}()
