@@ -73,6 +73,7 @@ func SetupRouter() *gin.Engine {
 		v3.POST("/app/:proj/:team/:app", getteamprojapp)
 		v3.GET("/app/:proj/:team/:app", getteamprojapp)
 		v3.GET("/resource/:app", getappres)
+		v3.POST("/resource/:app", getappWithres)
 	}
 	v4 := r.Group("/Reverso")
 	{
@@ -453,6 +454,31 @@ func reversoArch(c *gin.Context) {
 	c.Data(http.StatusOK, "application/yaml", bytes)
 }
 
+func getappWithres(c *gin.Context) {
+	app := c.Param("app")
+	entityTypes := map[string]interface{}{}
+	c.BindJSON(&entityTypes)
+
+	githelp.UpdateAll(c)
+	acrchconf := archfig.GetAppconfigOnline(app, c)
+
+	res := map[string]interface{}{}
+	res["team"] = acrchconf.Application.Team
+	res["resource"] = map[string]string{}
+	if len(entityTypes) > 0 {
+		for k, v := range acrchconf.Application.Resource {
+			if _, ok := entityTypes[v]; ok {
+				res["resource"].(map[string]string)[k] = v
+			}
+		}
+	} else {
+		res["resource"] = acrchconf.Application.Resource
+	}
+
+	// rediscli := redisops.Pool().Get()
+	c.JSON(http.StatusOK, res)
+}
+
 func getappres(c *gin.Context) {
 	app := c.Param("app")
 
@@ -614,7 +640,7 @@ func separate_commit_hook(c *gin.Context) {
 			changes, archalts := altconfig.Arch_commit(v, repourl, installflag, c)
 			iacfileinfo = append(iacfileinfo, changes...)
 			altinfos = append(altinfos, archalts...)
-		} else if strings.Contains(v.Path, "sql/") {
+		} else if strings.Contains(v.Path, "sql/") && strings.Contains(v.Path, ".sql") {
 			change := Sql_commit(v, tmppath, installflag, c)
 			dbfileinfo = append(dbfileinfo, change)
 		}
@@ -718,21 +744,21 @@ func Sql_commit(filecontentinfo archfig.FileContentInfo, repopath string, instal
 	var fileinfo githelp.Writeinfo
 
 	log := logagent.InstPlatform(c)
-	if strings.Contains(filecontentinfo.Path, ".sql") {
-		if strings.Contains(filecontentinfo.Status, "R") {
-			log.Panic("delete and add can't be in one commit,please split and push")
-		} else if filecontentinfo.Status == "A" || filecontentinfo.Status == "M" {
-			lowcontent := strings.ToLower(filecontentinfo.Content)
-			if strings.Contains(lowcontent, "drop") || strings.Contains(lowcontent, "truncate") {
-				log.Panic("sql cant contain drop or truncate")
-			}
+	// if strings.Contains(filecontentinfo.Path, ".sql") {
+	if strings.Contains(filecontentinfo.Status, "R") {
+		log.Panic("delete and add can't be in one commit,please split and push")
+	} else if filecontentinfo.Status == "A" || filecontentinfo.Status == "M" {
+		lowcontent := strings.ToLower(filecontentinfo.Content)
+		if strings.Contains(lowcontent, "drop") || strings.Contains(lowcontent, "truncate") {
+			log.Panic("sql cant contain drop or truncate")
+		}
 
-			if install {
+		if install {
 
-				fileinfo = githelp.Writeinfo{Filepath: constset.DbPath + repopath + filecontentinfo.Path, Content: filecontentinfo.Content, Del: false}
+			fileinfo = githelp.Writeinfo{Filepath: constset.DbPath + repopath + filecontentinfo.Path, Content: filecontentinfo.Content, Del: false}
 
-			}
 		}
 	}
+	// }
 	return fileinfo
 }
