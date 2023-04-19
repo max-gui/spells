@@ -46,10 +46,14 @@ type opsmethod func(map[string]string, bool, bool, context.Context) Deployresult
 //		return FlashNOps(branch, env, dc, appname, team, proj, region, deploy4target, genconf, c)
 //	}
 func StrtegyFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
+	branchCheck(c, branch, env)
+
 	return FlashNOps(branch, env, dc, "", appname, team, proj, region, true, deploy4strategy, deploySingle, true, c)
 }
 
 func TargetFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
+	branchCheck(c, branch, env)
+
 	return FlashNOps(branch, env, dc, "", appname, team, proj, region, true, deploy4target, deploySingle, true, c)
 }
 
@@ -65,13 +69,21 @@ func TargetFlashMigrate(branch, env, dc, sourcedc, appname, team, proj, region s
 	return FlashNOps(branch, env, dc, sourcedc, appname, team, proj, region, false, deploy4target, migrateSingle, false, c)
 }
 
-func FlashNOps(branch, env, dc, sourcedc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, genconf bool, c context.Context) []Deployresult {
-
+func branchCheck(c context.Context, branch string, env string) {
 	log := logagent.InstPlatform(c)
 
 	if iac.IsBranchNameIllegal(branch, env) {
 		log.Panic("branch name is ilegal")
 	}
+}
+
+func FlashNOps(branch, env, dc, sourcedc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, genconf bool, c context.Context) []Deployresult {
+
+	// log := logagent.InstPlatform(c)
+
+	// if iac.IsBranchNameIllegal(branch, env) {
+	// 	log.Panic("branch name is ilegal")
+	// }
 	var (
 		isupdate bool
 		appconf  archfig.Arch_config

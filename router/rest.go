@@ -286,7 +286,7 @@ func applyResFree(c *gin.Context) {
 	// appid := c.Param("appid")
 	env := c.Param("env")
 	region := c.Param("region")
-	branch := "release20060102"
+	branch := ""
 	team := c.Param("team")
 	proj := c.Param("proj")
 	dc := ""
@@ -318,6 +318,27 @@ func applyResFree(c *gin.Context) {
 	})
 }
 
+func targetResFree(c *gin.Context) {
+	appname := c.Param("appname")
+	// appid := c.Param("appid")
+	region := c.Param("region")
+	branch := ""
+	team := c.Param("team")
+	proj := c.Param("proj")
+	env := c.Param("dcenv")
+	dc := c.Param("dc")
+
+	log := logagent.InstPlatform(c).WithField("ops-method", "targetResFree").WithField("release-app", appname).WithField("region", region)
+	// deploymap = fn0(appconf, env, region, branch, appname)
+	log.Print("start")
+	resurl := deploy.TargetFlashRelease(branch, env, dc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
+
+	log.Print(resurl)
+	c.JSON(http.StatusOK, gin.H{
+		"result": resurl,
+	})
+}
+
 func targetMigrate(c *gin.Context) {
 	appname := c.Param("appname")
 	// appid := c.Param("appid")
@@ -334,27 +355,6 @@ func targetMigrate(c *gin.Context) {
 	// deploymap = fn0(appconf, env, region, branch, appname)
 	log.Print("start")
 	resurl := deploy.TargetFlashMigrate(branch, env, dc, sourcedc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
-
-	log.Print(resurl)
-	c.JSON(http.StatusOK, gin.H{
-		"result": resurl,
-	})
-}
-
-func targetResFree(c *gin.Context) {
-	appname := c.Param("appname")
-	// appid := c.Param("appid")
-	region := c.Param("region")
-	branch := ""
-	team := c.Param("team")
-	proj := c.Param("proj")
-	env := c.Param("dcenv")
-	dc := c.Param("dc")
-
-	log := logagent.InstPlatform(c).WithField("ops-method", "targetResFree").WithField("release-app", appname).WithField("region", region)
-	// deploymap = fn0(appconf, env, region, branch, appname)
-	log.Print("start")
-	resurl := deploy.TargetFlashRelease(branch, env, dc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
 
 	log.Print(resurl)
 	c.JSON(http.StatusOK, gin.H{
