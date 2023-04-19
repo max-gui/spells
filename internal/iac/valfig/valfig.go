@@ -2,6 +2,7 @@ package valfig
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -138,6 +139,32 @@ func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc stri
 	for _, arg := range appconf.Deploy.Runtime.Args {
 		if _, ok := ignmap[arg]; !ok {
 			argstr = argstr + " " + arg
+		}
+	}
+
+	if strings.Contains(appconf.Application.Type, "java") {
+		mem, err := strconv.ParseFloat(strings.TrimRight(appconf.Environment.Strategy[envinfo.Env].Mem, "Mi"), 32)
+		if err != nil {
+			logger.Info("mem config in wrong format")
+			logger.Panic(err)
+		}
+
+		maxmempercentarr := strings.Split(argstr, "-XX:MaxRAMPercentage=")
+		if len(maxmempercentarr) == 2 {
+			maxmempercent, err := strconv.ParseFloat(strings.Split(maxmempercentarr[1], " ")[0], 32)
+
+			if err != nil {
+				logger.Info("MaxRAMPercentage config in wrong format")
+				logger.Panic(err)
+			}
+
+			if maxmempercent > 80 {
+				logger.Panic("-XX:MaxRAMPercentage can't great than 80")
+			}
+
+			freemem := mem * (100 - maxmempercent - 10) / 100
+			mdmarg := fmt.Sprintf("-XX:MaxDirectMemorySize=%dm", int(freemem))
+			argstr = argstr + " " + mdmarg
 		}
 	}
 

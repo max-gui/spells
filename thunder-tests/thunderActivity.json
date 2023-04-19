@@ -101,5 +101,38 @@
       "form": []
     },
     "tests": []
+  },
+  {
+    "_id": "34444f37-4a84-424f-9e41-abf9a30ef627",
+    "colId": "history",
+    "containerId": "",
+    "name": "http://127.0.0.1:8080/arch/install",
+    "url": "http://127.0.0.1:8080/arch/install",
+    "method": "GET",
+    "sortNum": 0,
+    "created": "2023-02-23T07:41:41.867Z",
+    "modified": "2023-02-23T07:41:41.867Z",
+    "headers": [],
+    "params": [],
+    "tests": []
+  },
+  {
+    "_id": "0b3e82f4-fc78-4787-a5e4-ff5c107cf09c",
+    "colId": "history",
+    "containerId": "",
+    "name": "http://127.0.0.1:8080/arch/install",
+    "url": "http://127.0.0.1:8080/arch/install",
+    "method": "POST",
+    "sortNum": 0,
+    "created": "2023-02-23T07:41:58.162Z",
+    "modified": "2023-02-23T07:56:28.997Z",
+    "headers": [],
+    "params": [],
+    "body": {
+      "type": "json",
+      "raw": "{\n    \"Application\": {\n        \"Name\": \"af-affe-security-gateway\",\n        \"Description\": \"前置平台安全网关\",\n        \"Appid\": \"fls-afch\",\n        \"Type\": \"java\",\n        \"Language\": \"java\",\n        \"Langval\": \"JAVA\",\n        \"NoSource\": false,\n        \"Repositry\": \"ssh://git@code.paic.com.cn:8006/fls-pace-layered-arch/security-gateway.git\",\n        \"Resource\": null,\n        \"Service\": null,\n        \"Extservice\": null,\n        \"Team\": \"pv-core\",\n        \"Project\": \"secgw\",\n        \"Ungenfig\": false,\n        \"Allpath\": true\n    },\n    \"Environment\": {\n        \"NodeSelector\": null,\n        \"Strategy\": {\n            \"prod\": {\n                \"Capacity\": \"\",\n                \"Cpu\": \"2\",\n                \"Mem\": \"4096Mi\",\n                \"Replica\": 2\n            },\n            \"test\": {\n                \"Capacity\": \"\",\n                \"Cpu\": \"1\",\n                \"Mem\": \"1024Mi\",\n                \"Replica\": 1\n            },\n            \"uat\": {\n                \"Capacity\": \"\",\n                \"Cpu\": \"1\",\n                \"Mem\": \"1024Mi\",\n                \"Replica\": 1\n            }\n        },\n        \"Resource\": {\n            \"hostAlias\": [\n                \"detector-paic-com-cn\"\n            ],\n            \"pinpoint\": [\n                \"detector\"\n            ],\n            \"volumn\": [\n                \"rpa\",\n                \"logs\",\n                \"dump\"\n            ]\n        },\n        \"Tag\": {},\n        \"Port\": \"8080\",\n        \"EnHostportable\": false,\n        \"Hostport\": \"\",\n        \"IsHostNetwork\": false,\n        \"Expose\": {\n            \"Internet\": {\n                \"Visible\": false,\n                \"Blacklist\": null\n            },\n            \"Intranet\": {\n                \"Visible\": false,\n                \"Blacklist\": null\n            },\n            \"Clusternet\": {\n                \"Open\": false\n            },\n            \"Ptrnet\": {\n                \"Open\": false\n            },\n            \"Unsafe\": false,\n            \"Host\": \"\",\n            \"Expovice\": \"\",\n            \"PrefixPath\": \"\",\n            \"SurfixPath\": \"\",\n            \"Manual\": null\n        }\n    },\n    \"Deploy\": {\n        \"Limited\": {\n            \"DR\": {}\n        },\n        \"Strategy\": null,\n        \"Dcenv\": [\n            \"testLFB\",\n            \"uatLFB\",\n            \"prodLFB\",\n            \"prodDR\"\n        ],\n        \"Stratail\": {\n            \"prod\": [\n                [\n                    {\n                        \"Env\": \"prod\",\n                        \"Dc\": \"LFB\"\n                    }\n                ]\n            ],\n            \"test\": [\n                [\n                    {\n                        \"Env\": \"test\",\n                        \"Dc\": \"LFB\"\n                    }\n                ]\n            ],\n            \"uat\": [\n                [\n                    {\n                        \"Env\": \"uat\",\n                        \"Dc\": \"LFB\"\n                    }\n                ]\n            ]\n        },\n        \"Runtime\": {\n            \"Args\": [\n                \"-Dapollo.cluster=\\\\$(cluster)\",\n                \"-Dspring.config.use-legacy-processing=true\",\n                \"-Dspring.profiles.include=$prfileActive\",\n                \"-XX:+UnlockExperimentalVMOptions\",\n                \"-XX:+UseCGroupMemoryLimitForHeap\",\n                \"-XX:MaxRAMPercentage=70.0\",\n                \"-XX:InitialRAMPercentage=70.0\",\n                \"-XX:MinRAMPercentage=40.0\",\n                \"-XX:+HeapDumpOnOutOfMemoryError\",\n                \"-XX:+PrintGCDetails\",\n                \"-XX:+PrintGCDateStamps\",\n                \"-XX:+PrintGCTimeStamps\",\n                \"-Dfile.encoding=UTF-8\",\n                \"-javaagent:/wls/wls81/detector-agent/detector-bootstrap.jar\",\n                \"-javaagent:/wls/wls81/lbagent-1.0.1.jar=http://\\\\$(POD_IP)/agentcall/$ServiceName/$Buildenv/$dc/\"\n            ],\n            \"Ign\": {\n                \"prod\": [],\n                \"test\": [],\n                \"uat\": []\n            }\n        },\n        \"Build\": {\n            \"Cmd\": \"mvn\",\n            \"Args\": \"clean package -Dfile.encoding=UTF-8 -DskipTests=true\",\n            \"Pkgconf\": \"pom.xml\",\n            \"Output\": \"security-zuul/target/fls-aflm-security-zuul.jar\",\n            \"Jenkignor\": null,\n            \"Jenkexec\": null\n        },\n        \"Sidecar\": {\n            \"Neighbour\": [\n                \"nginx-ext-proxy\"\n            ],\n            \"Ign\": {\n                \"prod\": [],\n                \"test\": [],\n                \"uat\": []\n            }\n        }\n    },\n    \"Docker\": {\n        \"From\": \"\",\n        \"Append\": null,\n        \"Cmd\": \"\"\n    }\n}",
+      "form": []
+    },
+    "tests": []
   }
 ]

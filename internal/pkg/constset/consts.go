@@ -19,7 +19,7 @@ const PthSep = string(os.PathSeparator)
 
 var (
 	Consolvername, RedisPwd, IacBranch, Gitname, Gitemail                                                                                                *string
-	Repopathname, envset, Commitmsg, ConfArchPrefix, ConfOrgPrefix, ConfResPrefix, ConfTeamProjPrefix                                                    *string
+	Repopathname, envset, Commitmsg, ConfArchPrefix, DeployInfoPrefix, ConfOrgPrefix, ConfResPrefix, ConfTeamProjPrefix                                  *string
 	ConfWatchPrefix, ConfbalckPrefix, ConfwhitePrefix, ConfFabioPrefix, ConfmanBalckPrefix, ConfTraefikPrefix                                            *string
 	EnvSet                                                                                                                                               []string
 	Reppath, Archpath, Iacpath, Templepath, DbPath, Defconfpath, Archname, Iacname, Templname, Dbname, Sshkey, Archurl, IacUrl, Dburl, Codeurl, Templurl string
@@ -82,6 +82,7 @@ func init() {
 	Gitemail = flag.String("gitemail", "", "git user email")
 	Commitmsg = flag.String("commitmsg", "STRUC#1742", "commit msg") //"FLS-AFLM-YW#6", "commit msg")
 	ConfArchPrefix = flag.String("confArchPrefix", "ops/iac/arch/", "arch prefix for consul")
+	DeployInfoPrefix = flag.String("srv_intention", "ops/iac/deploy_info/", "deploy info prefix for consul")
 	ConfOrgPrefix = flag.String("confOrgPrefix", "ops/iac/org/", "arch prefix for consul")
 	ConfResPrefix = flag.String("ConfResPrefix", "ops/resource/", "resource prefix for consul")
 	ConfTeamProjPrefix = flag.String("ConfTeamProjPrefix", "ops/iac/team-proj", "teamproj prefix for consul")

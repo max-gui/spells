@@ -250,7 +250,7 @@ func CommitPushFiles(filesinfo []Writeinfo, repo *git.Repository, perfixstr stri
 			}
 			_, err = w.Add(strings.TrimPrefix(chfile.Filepath, perfixstr))
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 
 		}

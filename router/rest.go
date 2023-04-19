@@ -67,6 +67,13 @@ func SetupRouter() *gin.Engine {
 		v5.POST("/free/strategy/:appname/:appid/:env/:region/:team/:proj", applyResFree)
 		v5.POST("/free/direct/:appname/:appid/:dcenv/:dc/:region/:team/:proj", targetResFree)
 	}
+	v6 := r.Group("/apply/maintain")
+	{
+		// v5.POST("/free/:relasename", applyResFree)
+		// v2.POST("        /direct/:appname/:appid/:dcenv/:dc/:region/:branch/:team/:proj", targetDeploy)
+		v6.POST("/migrate/direct/:appname/:appid/:dcenv/:dc/:sourcedc/:region/:team/:proj", targetMigrate)
+		// v6.POST("/free/direct/:appname/:appid/:dcenv/:dc/          :region/:team/:proj", targetResFree)
+	}
 	v3 := r.Group("/info")
 	{
 		v3.POST("/proj/:team", getteamproj)
@@ -279,7 +286,7 @@ func applyResFree(c *gin.Context) {
 	// appid := c.Param("appid")
 	env := c.Param("env")
 	region := c.Param("region")
-	branch := ""
+	branch := "release20060102"
 	team := c.Param("team")
 	proj := c.Param("proj")
 	dc := ""
@@ -304,6 +311,29 @@ func applyResFree(c *gin.Context) {
 	// deploymap = fn0(appconf, env, region, branch, appname)
 	log.Print("start")
 	resurl := deploy.StrtegyFlashRelease(branch, env, dc, appname, team, proj, region, c) //renew4deploy(branch, env, dc, appname, team, proj, region, deploy4strategy)
+
+	log.Print(resurl)
+	c.JSON(http.StatusOK, gin.H{
+		"result": resurl,
+	})
+}
+
+func targetMigrate(c *gin.Context) {
+	appname := c.Param("appname")
+	// appid := c.Param("appid")
+	region := c.Param("region")
+	branch := ""
+	team := c.Param("team")
+	proj := c.Param("proj")
+	env := c.Param("dcenv")
+	dc := c.Param("dc")
+	sourcedc := c.Param("sourcedc")
+
+	log := logagent.InstPlatform(c).WithField("ops-method", "targetMigrate").
+		WithField("migrate-app", appname).WithField("region", region).WithField("sourcedc", sourcedc).WithField("dc", dc)
+	// deploymap = fn0(appconf, env, region, branch, appname)
+	log.Print("start")
+	resurl := deploy.TargetFlashMigrate(branch, env, dc, sourcedc, appname, team, proj, region, c) //FlashNdeploy(branch, env, dc, appname, team, proj, region, deploy4target)
 
 	log.Print(resurl)
 	c.JSON(http.StatusOK, gin.H{
@@ -673,7 +703,7 @@ func arch_install(c *gin.Context) {
 	}
 	log.Println(string(bs))
 
-	archinfo.Install(c)
+	archinfo.Deploy_Install(c)
 	c.String(http.StatusOK, "install success")
 }
 

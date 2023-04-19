@@ -21,8 +21,9 @@ type FileContentInfo struct {
 }
 
 type EnvInfo struct {
-	Env string
-	Dc  string
+	Env      string
+	Dc       string
+	SourceDc string
 }
 type BlackInfo struct {
 	Visible   bool     `yaml:"visible,omitempty"`
@@ -631,19 +632,13 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 
 					flowenv := strings.Split(strings.TrimSuffix(flow, ")"), "(")
 					if len(flowenv) > 1 {
-						sflows = append(sflows, struct {
-							Env string
-							Dc  string
-						}{
+						sflows = append(sflows, EnvInfo{
 							Env: flowenv[1],
 							Dc:  flowenv[0],
 						})
 						// envstr = flowenv[1] + "-" + flowenv[0]
 					} else {
-						sflows = append(sflows, struct {
-							Env string
-							Dc  string
-						}{
+						sflows = append(sflows, EnvInfo{
 							Env: env,
 							Dc:  flowenv[0],
 						})
@@ -673,19 +668,13 @@ func GenArchConfigSinFrominst(app_conf Arch_config, appfname string, isinstall b
 					sflows := []EnvInfo{}
 					flowenv := strings.Split(strings.TrimSuffix(flow, ")"), "(")
 					if len(flowenv) > 1 {
-						sflows = append(sflows, struct {
-							Env string
-							Dc  string
-						}{
+						sflows = append(sflows, EnvInfo{
 							Env: flowenv[1],
 							Dc:  flowenv[0],
 						})
 						// envstr = flowenv[1] + "-" + flowenv[0]
 					} else {
-						sflows = append(sflows, struct {
-							Env string
-							Dc  string
-						}{
+						sflows = append(sflows, EnvInfo{
 							Env: env,
 							Dc:  flowenv[0],
 						})
@@ -825,9 +814,22 @@ func (v *Arch_config) Install(c context.Context) {
 	// v.FireWallRefresh(oldfig, c)
 	v.FireWallRefresh4Wthie(c)
 	bytes, _ := json.MarshalIndent(v, "", "    ")
-
 	// consulhelp.PutConfig(*constset.ConfArchPrefix, v.Application.Team, v.Application.Project, v.Application.Name, bytes)
 	consulhelp.PutConfigFull(*constset.ConfArchPrefix+v.Application.Name, bytes, c)
+}
+
+func (v *Arch_config) Deploy_Install(c context.Context) {
+	// oldfig := GetArchfigSin(v.Application.Name, c)
+	// v.FireWallRefresh(oldfig, c)
+	v.FireWallRefresh4Wthie(c)
+	bytes, _ := json.MarshalIndent(v, "", "    ")
+
+	if v.Application.Name == "" {
+		log := logagent.InstPlatform(c)
+		log.Panic("application name should not be empty")
+	}
+	// consulhelp.PutConfig(*constset.ConfArchPrefix, v.Application.Team, v.Application.Project, v.Application.Name, bytes)
+	consulhelp.PutConfigFull(*constset.DeployInfoPrefix+v.Application.Name, bytes, c)
 }
 
 func (v *Arch_config) OrgInstall(c context.Context) {

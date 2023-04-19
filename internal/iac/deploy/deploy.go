@@ -35,7 +35,7 @@ type DeployInfo struct {
 	Dc      string
 }
 
-type dcenvdeploy func(archfig.Arch_config, string, string, string, string, bool, context.Context) [][]map[string]string
+type dcenvdeploy func(archfig.Arch_config, string, string, string, string, string, bool, context.Context) [][]map[string]string
 type opsmethod func(map[string]string, bool, bool, context.Context) Deployresult
 
 // func FlashNdeploy4Strtegy(branch, env, dc, appname, team, proj, region string, c context.Context, genconf bool) []deployresult {
@@ -46,22 +46,26 @@ type opsmethod func(map[string]string, bool, bool, context.Context) Deployresult
 //		return FlashNOps(branch, env, dc, appname, team, proj, region, deploy4target, genconf, c)
 //	}
 func StrtegyFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
-	return FlashNOps(branch, env, dc, appname, team, proj, region, true, deploy4strategy, deploySingle, true, c)
+	return FlashNOps(branch, env, dc, "", appname, team, proj, region, true, deploy4strategy, deploySingle, true, c)
 }
 
 func TargetFlashDeploy(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
-	return FlashNOps(branch, env, dc, appname, team, proj, region, true, deploy4target, deploySingle, true, c)
+	return FlashNOps(branch, env, dc, "", appname, team, proj, region, true, deploy4target, deploySingle, true, c)
 }
 
 func StrtegyFlashRelease(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
-	return FlashNOps(branch, env, dc, appname, team, proj, region, false, deploy4strategy, releaseSingle, false, c)
+	return FlashNOps(branch, env, dc, "", appname, team, proj, region, false, deploy4strategy, releaseSingle, false, c)
 }
 
 func TargetFlashRelease(branch, env, dc, appname, team, proj, region string, c context.Context) []Deployresult {
-	return FlashNOps(branch, env, dc, appname, team, proj, region, false, deploy4target, releaseSingle, false, c)
+	return FlashNOps(branch, env, dc, "", appname, team, proj, region, false, deploy4target, releaseSingle, false, c)
 }
 
-func FlashNOps(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, genconf bool, c context.Context) []Deployresult {
+func TargetFlashMigrate(branch, env, dc, sourcedc, appname, team, proj, region string, c context.Context) []Deployresult {
+	return FlashNOps(branch, env, dc, sourcedc, appname, team, proj, region, false, deploy4target, migrateSingle, false, c)
+}
+
+func FlashNOps(branch, env, dc, sourcedc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, genconf bool, c context.Context) []Deployresult {
 
 	log := logagent.InstPlatform(c)
 
@@ -111,14 +115,14 @@ func FlashNOps(branch, env, dc, appname, team, proj, region string, updateRepo b
 		isupdate = false
 	}
 
-	deploymap := deployhelp(appconf, env, dc, region, branch, genconf, c)
+	deploymap := deployhelp(appconf, env, dc, sourcedc, region, branch, genconf, c)
 	// var deploymap []map[string]string
 
 	resurl := opsMultiply(deploymap, isupdate, opsingl, c)
 	return resurl
 }
 
-func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhelp dcenvdeploy, c context.Context) []Deployresult {
+func FlashNdeploy(branch, env, dc, sourcedc, appname, team, proj, region string, deployhelp dcenvdeploy, c context.Context) []Deployresult {
 
 	log := logagent.InstPlatform(c)
 
@@ -158,14 +162,14 @@ func FlashNdeploy(branch, env, dc, appname, team, proj, region string, deployhel
 	appconf.Install(c)
 	isupdate := githelp.CommitPushFiles(filesinfo, iacr, constset.Iacpath, c)
 
-	deploymap := deployhelp(appconf, env, dc, region, branch, true, c)
+	deploymap := deployhelp(appconf, env, dc, sourcedc, region, branch, true, c)
 	// var deploymap []map[string]string
 
 	resurl := opsMultiply(deploymap, isupdate, deploySingle, c)
 	return resurl
 }
 
-func FlashNrelease(branch, env, dc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, c context.Context) []Deployresult {
+func FlashNrelease(branch, env, dc, sourcedc, appname, team, proj, region string, updateRepo bool, deployhelp dcenvdeploy, opsingl opsmethod, c context.Context) []Deployresult {
 
 	log := logagent.InstPlatform(c)
 
@@ -215,7 +219,7 @@ func FlashNrelease(branch, env, dc, appname, team, proj, region string, updateRe
 		isupdate = false
 	}
 
-	deploymap := deployhelp(appconf, env, dc, region, branch, false, c)
+	deploymap := deployhelp(appconf, env, dc, sourcedc, region, branch, false, c)
 	// var deploymap []map[string]string
 
 	resurl := opsMultiply(deploymap, isupdate, opsingl, c)
@@ -223,7 +227,7 @@ func FlashNrelease(branch, env, dc, appname, team, proj, region string, updateRe
 }
 
 func deploy4target(appconf archfig.Arch_config,
-	env, dc, region, branch string, genconf bool, c context.Context) [][]map[string]string {
+	env, dc, sourcedc, region, branch string, genconf bool, c context.Context) [][]map[string]string {
 	// valstring, dockerstring := getvalues(appconf, BuildEnv, prfileActive)
 	// deploymap = append(deploymap, map[string]string{
 	// 	"BuildEnv":         BuildEnv,
@@ -246,8 +250,9 @@ func deploy4target(appconf archfig.Arch_config,
 
 	depmap := genjenkloymap(appconf,
 		archfig.EnvInfo{
-			Env: env,
-			Dc:  dc,
+			Env:      env,
+			Dc:       dc,
+			SourceDc: sourcedc,
 		}, region, branch, c)
 	// realseName, depmap = fn2(appconf, BuildEnv, envstr, realseName, region, branch)
 	// depmap["BuildEnv"] = env
@@ -262,7 +267,7 @@ func deploy4target(appconf archfig.Arch_config,
 }
 
 // deployhelp(appconf, env, dc, region, branch)
-func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region string, branch string, genconf bool, c context.Context) [][]map[string]string {
+func deploy4strategy(appconf archfig.Arch_config, env, dc, sourcedc, region, branch string, genconf bool, c context.Context) [][]map[string]string {
 	deploymapseq := [][]map[string]string{}
 	// envstrlist := []string{}
 	for _, v := range appconf.Deploy.Stratail[env] {
@@ -277,7 +282,7 @@ func deploy4strategy(appconf archfig.Arch_config, env string, dc string, region 
 			if envinfo.Env != "prod" && region == "rc" {
 				continue
 			}
-
+			envinfo.SourceDc = sourcedc
 			depmap := genjenkloymap(appconf, envinfo, region, branch, c)
 			// depmap["BuildEnv"] = envinfo.Env
 			// depmap["prfileActive"] = envdc
@@ -443,6 +448,7 @@ func genjenkinsmap(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envstr 
 		"Dockerstring": dockerstring,
 		"Description":  appconf.Application.Description,
 		"Appname":      appconf.Application.Name,
+		"team":         appconf.Application.Team,
 		"Langval":      appconf.Application.Langval,
 
 		"Appid": appconf.Application.Appid,
@@ -450,6 +456,7 @@ func genjenkinsmap(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envstr 
 		"BuildEnv":     envinfo.Env,
 		"prfileActive": envstr,
 		"dc":           envinfo.Dc,
+		"sourcedc":     envinfo.SourceDc,
 		"iacenv":       *logsets.Appenv,
 		"isupdate":     "false",
 		"archfig":      string(bytes),
@@ -594,20 +601,76 @@ type Deployresult struct {
 // 	if err != nil {
 // 		log.Print(err)
 
-// 		depres.Status = false
-// 		depres.Msg = fmt.Sprintf("%v", err)
-// 		c <- depres
-// 		wg.Done()
-// 		return
-// 	}
-// 	buildno := build.GetBuildNumber()
-// 	depres.Status = true
-// 	depres.Resulturl = jurl + "job/" + "iac-" + deployinfo["Appname"] + "/" + fmt.Sprint(buildno) + "/console"
-// 	depres.JobName = "iac-" + deployinfo["Appname"]
-// 	depres.TaskIndex = buildno
-// 	c <- depres
-// 	wg.Done()
-// }
+//			depres.Status = false
+//			depres.Msg = fmt.Sprintf("%v", err)
+//			c <- depres
+//			wg.Done()
+//			return
+//		}
+//		buildno := build.GetBuildNumber()
+//		depres.Status = true
+//		depres.Resulturl = jurl + "job/" + "iac-" + deployinfo["Appname"] + "/" + fmt.Sprint(buildno) + "/console"
+//		depres.JobName = "iac-" + deployinfo["Appname"]
+//		depres.TaskIndex = buildno
+//		c <- depres
+//		wg.Done()
+//	}
+func migrateSingle(releaseinfo map[string]string, isupdate, flag bool, c context.Context) Deployresult {
+	// var resurl deployresult
+	log := logagent.InstPlatform(c)
+
+	depres := Deployresult{Dcenv: releaseinfo["BuildEnv"], Dc: releaseinfo["dc"]}
+
+	ctx := context.Background()
+	// restmp := deployresult{status: false, msg: fmt.Sprintf("%v", e)}
+	jenkins, jurl, _ := jenkinsops.GetJenkins(releaseinfo["prfileActive"], c)
+
+	jobname := "devops-migrate"
+	job, err := jenkins.GetJob(ctx, jobname)
+	// bytes, err := json.MarshalIndent(job.Raw.Scm, "", "    ")
+	// str, err := job.GetConfig(ctx)
+	// if err != nil {
+	// 	log.Print(err)
+	// }
+
+	// log.Print(str)
+	// log.Print(string(bytes))
+
+	// jenkins.Requester.GetXML()
+
+	if err != nil {
+		log.Panic("devops-deleteEnv doesnt exist")
+	}
+	log.Print(job)
+
+	queid, err := job.InvokeSimple(ctx, releaseinfo)
+	if err != nil {
+
+		log.Print(err)
+
+		depres.Status = false
+		depres.Msg = fmt.Sprintf("%v", err)
+
+		return depres
+	}
+
+	build, err := job.Jenkins.GetBuildFromQueueID(ctx, queid) //job.GetLastBuild(ctx) //
+	if err != nil {
+		log.Print(err)
+
+		depres.Status = false
+		depres.Msg = fmt.Sprintf("%v", err)
+
+		return depres
+	}
+	buildno := build.GetBuildNumber()
+	depres.Status = true
+	depres.Resulturl = jurl + "job/" + jobname + "/" + fmt.Sprint(buildno) + "/console"
+	depres.JobName = jobname
+	depres.TaskIndex = buildno
+
+	return depres
+}
 
 func releaseSingle(releaseinfo map[string]string, isupdate, flag bool, c context.Context) Deployresult {
 	// var resurl deployresult
