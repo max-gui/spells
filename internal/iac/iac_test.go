@@ -253,13 +253,14 @@ func Test_cmdargIgn(t *testing.T) {
 	appconf := archfig.GetArchfigSin("af-affe-security-gateway", c)
 	appconf.Deploy.Runtime.Args = []string{" aa bb ", " -XX:+UnlockExperimentalVMOptions "}
 	appconf.Deploy.Runtime.Ign = map[string][]string{"test": {" aa bb ", " -XX:+UseCGroupMemoryLimitForHeap  "}}
+	appconf.Environment.Resource["volumn"] = append(appconf.Environment.Resource["volumn"], "emptydir")
 
 	realarch := archfig.GenArchConfigSinFrominst(appconf, appconf.Application.Name, false, c)
 	log.Println(realarch.Deploy.Runtime.Ign["prod"])
 
 	// log.Println(realarch)
 
-	testvf := valfig.GenValfig(realarch, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "test", c)
+	testvf := valfig.GenValfig(realarch, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "testLFB", "release20220312", c)
 	testval := valfig.GenValfile(testvf, c)
 	log.Println(testval)
 	ClearcacheAll(c)
@@ -269,7 +270,7 @@ func Test_cmdargIgn(t *testing.T) {
 	realarch = archfig.GenArchConfigSinFrominst(appconf, appconf.Application.Name, false, c)
 	log.Println(realarch.Deploy.Runtime.Ign["prod"])
 	// log.Println(realarch)
-	prodvf := valfig.GenValfig(realarch, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "prod", c)
+	prodvf := valfig.GenValfig(realarch, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "prod", "release20220312", c)
 	prodval := valfig.GenValfile(prodvf, c)
 	log.Println(prodval)
 	assert.Contains(t, realarch.Deploy.Runtime.Args, "-javaagent:/wls/wls81/lbagent-1.0.0.jar=http://\\$(POD_IP)/agentcall/$ServiceName/$Buildenv/$dc/")
@@ -291,13 +292,13 @@ func Test_valuesfull(t *testing.T) {
 	// appconf.Application.Resource = map[string]string{"a": "1", "xxl": "2"}
 	appconf.Environment.Resource = map[string][]string{"pinpoint": {"detector"}}
 
-	valconfig := valfig.GenValfig(appconf, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "test", c)
+	valconfig := valfig.GenValfig(appconf, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "test", "release20220312", c)
 
 	valfile := valfig.GenValfile(valconfig, c)
 	log.Println(valfile)
 
 	appconf.Application.Resource["xxl-viechle"] = "xxl"
-	valconfig = valfig.GenValfig(appconf, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "test", c)
+	valconfig = valfig.GenValfig(appconf, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "test", "release20220312", c)
 
 	valfile = valfig.GenValfile(valconfig, c)
 	log.Println(valfile)
@@ -306,7 +307,7 @@ func Test_valuesfull(t *testing.T) {
 	appconf.Environment.IsHostNetwork = true
 	appconf.Environment.Port = ""
 	appconf2 := archfig.GenArchConfigSinFrominst(appconf, appconf.Application.Name, false, c)
-	valconfig = valfig.GenValfig(appconf2, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "test", c)
+	valconfig = valfig.GenValfig(appconf2, archfig.EnvInfo{Env: "prod", Dc: "LFB"}, "test", "release20220312", c)
 
 	valfile = valfig.GenValfile(valconfig, c)
 	log.Println(valfile)
@@ -332,7 +333,7 @@ func Test_setNetworkList(t *testing.T) {
 	appconf = archfig.GenArchConfigSinFrominst(appconf, "af-affe-security-gateway", false, c)
 	appconf.FireWallRefresh4Wthie(c)
 
-	valconf := valfig.GenValfig(appconf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", c)
+	valconf := valfig.GenValfig(appconf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", "release20220312", c)
 	values := valfig.GenValfile(valconf, c)
 	log.Print(values)
 
@@ -345,7 +346,7 @@ func Test_setNetworkList(t *testing.T) {
 	// app2conf.FireWallRefresh(appconf, c)
 	appconf.FireWallRefresh4Wthie(c)
 
-	valconf = valfig.GenValfig(app2conf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", c)
+	valconf = valfig.GenValfig(app2conf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", "release20220312", c)
 	values = valfig.GenValfile(valconf, c)
 	log.Print(values)
 }
@@ -355,7 +356,7 @@ func GenValfig4envs(appconf archfig.Arch_config, envdcs []archfig.EnvInfo) map[s
 	c := context.Background()
 	for _, envdc := range envdcs {
 		x0 := envdc.Env + envdc.Dc
-		res[x0] = valfig.GenValfig(appconf, envdc, x0, c)
+		res[x0] = valfig.GenValfig(appconf, envdc, x0, "release20220312", c)
 	}
 
 	return res
@@ -494,7 +495,7 @@ func Test_genvalfile(t *testing.T) {
 
 	c := context.Background()
 	appconf := archfig.GetArchfigSin("aflm-cmnsrv-customer-gateway", c)
-	valcofn := valfig.GenValfig(appconf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", c)
+	valcofn := valfig.GenValfig(appconf, archfig.EnvInfo{Dc: "LFB", Env: "test"}, "test", "release20220312", c)
 	str := valfig.GenValfile(valcofn, c)
 	log.Print(str)
 
@@ -1080,7 +1081,7 @@ func Test_f00(t *testing.T) {
 		log.Printf("\nresult values for env:%s\n%s", string(k), result)
 	}
 
-	valconfig := valfig.GenValfig(archconfig, envinfos[0], envinfos[0].Env+envinfos[0].Dc, c)
+	valconfig := valfig.GenValfig(archconfig, envinfos[0], envinfos[0].Env+envinfos[0].Dc, "release20220312", c)
 	result := valfig.GenValfile(valconfig, c) //templ.Gempl(templtmp, v)
 
 	log.Printf("\nresult values for env:%s\n%s", envinfos[0], result)
@@ -1119,7 +1120,7 @@ func Test_dd(t *testing.T) {
 	log.Print(app_conf.Deploy.Build.Jenkignor)
 	// app_conf.Environment.NodeSelector = map[string]string{"test": "test"}
 	// log.Print(app_conf.Deploy.Runtime.Args)
-	valconf := valfig.GenValfig(app_conf, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "test", c)
+	valconf := valfig.GenValfig(app_conf, archfig.EnvInfo{Env: "test", Dc: "LFB"}, "test", "release20220312", c)
 
 	bytes, _ := yaml.Marshal(valconf)
 	log.Print(string(bytes))

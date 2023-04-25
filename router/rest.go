@@ -71,7 +71,7 @@ func SetupRouter() *gin.Engine {
 	{
 		// v5.POST("/free/:relasename", applyResFree)
 		// v2.POST("        /direct/:appname/:appid/:dcenv/:dc/:region/:branch/:team/:proj", targetDeploy)
-		v6.POST("/migrate/direct/:appname/:appid/:dcenv/:dc/:sourcedc/:region/:team/:proj", targetMigrate)
+		v6.POST("/migrate/direct/:appname/:appid/:dcenv/:dc/:sourcedc/:region/:branch/:team/:proj", targetMigrate)
 		// v6.POST("/free/direct/:appname/:appid/:dcenv/:dc/          :region/:team/:proj", targetResFree)
 	}
 	v3 := r.Group("/info")
@@ -343,7 +343,7 @@ func targetMigrate(c *gin.Context) {
 	appname := c.Param("appname")
 	// appid := c.Param("appid")
 	region := c.Param("region")
-	branch := ""
+	branch := c.Param("branch")
 	team := c.Param("team")
 	proj := c.Param("proj")
 	env := c.Param("dcenv")

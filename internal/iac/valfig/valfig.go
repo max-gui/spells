@@ -45,6 +45,7 @@ type ValuesInfo struct {
 	Volumns       []map[string]interface{}
 	Detectorip    map[string]interface{}
 	Resource      map[string][]interface{}
+	GitBranch     string
 	Appconf       archfig.Arch_config
 }
 
@@ -115,7 +116,7 @@ func GenValfile(valfig ValuesInfo, c context.Context) string {
 	return result
 }
 
-func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc string, c context.Context) ValuesInfo {
+func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc, gitbranch string, c context.Context) ValuesInfo {
 
 	// env := strings.Split(env_dc, "-")[0]
 	// var runargs = strings.Split(appconf.Deploy.Runtime.Args, " ")
@@ -214,6 +215,7 @@ func GenValfig(appconf archfig.Arch_config, envinfo archfig.EnvInfo, env_dc stri
 		Dc:            envinfo.Dc,
 		Resource:      make(map[string][]interface{}),
 		Appconf:       appconf,
+		GitBranch:     gitbranch,
 	}
 
 	if _, ok := appconf.Deploy.Limited[envinfo.Dc]; ok {

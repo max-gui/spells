@@ -66,6 +66,8 @@ func TargetFlashRelease(branch, env, dc, appname, team, proj, region string, c c
 }
 
 func TargetFlashMigrate(branch, env, dc, sourcedc, appname, team, proj, region string, c context.Context) []Deployresult {
+	branchCheck(c, branch, env)
+
 	return FlashNOps(branch, env, dc, sourcedc, appname, team, proj, region, false, deploy4target, migrateSingle, false, c)
 }
 
@@ -429,7 +431,7 @@ func genjenkinsmap(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envstr 
 
 	if !appconf.Application.Ungenfig {
 
-		valstring, dockerstring = getDeployconf(appconf, envinfo, envstr, c)
+		valstring, dockerstring = getDeployconf(appconf, envinfo, envstr, branch, c)
 		// tags := map[string]interface{}{}
 		// err := yaml.Unmarshal([]byte(valstring), tags)
 		// if err != nil {
@@ -923,8 +925,8 @@ func opsMultiply(deployinfoseq [][]map[string]string, isupdate bool, opsingle op
 	return resurl
 }
 
-func getDeployconf(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envdc string, c context.Context) (string, string) {
-	valconfig := valfig.GenValfig(appconf, envinfo, envdc, c)
+func getDeployconf(appconf archfig.Arch_config, envinfo archfig.EnvInfo, envdc, gitbranch string, c context.Context) (string, string) {
+	valconfig := valfig.GenValfig(appconf, envinfo, envdc, gitbranch, c)
 
 	valfile := valfig.GenValfile(valconfig, c)
 
